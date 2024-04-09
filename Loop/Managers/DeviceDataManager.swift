@@ -577,6 +577,8 @@ final class DeviceDataManager {
                 }
                 completion()
             }
+            
+            analyticsServicesManager.didFetchNewCGMData(readings: values)
         case .unreliableData:
             loopManager.receivedUnreliableCGMReading()
             completion()
@@ -1087,10 +1089,6 @@ extension DeviceDataManager: PumpManagerDelegate {
         }
 
         cgmManager.fetchNewDataIfNeeded { (result) in
-            if case let .newData(readings) = result {
-                self.analyticsServicesManager.didFetchNewCGMData(readings: readings)
-            }
-
             self.queue.async {
                 self.processCGMReadingResult(cgmManager, readingResult: result) {
                     if self.loopManager.lastLoopCompleted == nil || self.loopManager.lastLoopCompleted!.timeIntervalSinceNow < -.minutes(4.2) {
