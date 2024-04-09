@@ -1087,8 +1087,8 @@ extension DeviceDataManager: PumpManagerDelegate {
         }
 
         cgmManager.fetchNewDataIfNeeded { (result) in
-            if case .newData = result {
-                self.analyticsServicesManager.didFetchNewCGMData()
+            if case let .newData(readings) = result {
+                self.analyticsServicesManager.didFetchNewCGMData(readings: readings)
             }
 
             self.queue.async {
