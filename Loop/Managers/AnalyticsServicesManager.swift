@@ -181,9 +181,24 @@ final class AnalyticsServicesManager {
     func didBolus(source: String, units: Double, inSession: Bool = false) {
         logEvent("Bolus set", withProperties: ["source" : source, "units": "\(units)"], outOfSession: true)
     }
+    
+    private func properties(from sample: NewGlucoseSample) -> [AnyHashable: Any] {
+        var props: [AnyHashable: Any] = [
+            "value": sample.quantity.doubleValue(for: .milligramsPerDeciliter),
+            "date": sample.date
+        ]
+        
+        if let trendSymbol = sample.trend?.symbol {
+            props["trend"] = trendSymbol
+        }
+        
+        return props
+    }
 
-    func didFetchNewCGMData() {
-        logEvent("CGM Fetch", outOfSession: true)
+    func didFetchNewCGMData(readings: [NewGlucoseSample]) {
+        readings.forEach {
+            logEvent("CGM Fetch", withProperties: properties(from: $0), outOfSession: true)
+        }
     }
 
     func loopDidSucceed(_ duration: TimeInterval) {
