@@ -420,6 +420,38 @@
             "state" : "translated",
             "value" : "%@ U"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ U"
+          }
+        }
+      }
+    },
+    "%@%@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@"
+          }
+        }
+      }
+    },
+    "%@U" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@IE"
+          }
         }
       }
     },
@@ -538,6 +570,32 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ v%2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ v%2$@"
+          }
+        }
+      }
+    },
+    "Color" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farbe"
+          }
+        }
+      }
+    },
+    "Date" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datum"
           }
         }
       }
@@ -661,6 +719,16 @@
         }
       }
     },
+    "End" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ende"
+          }
+        }
+      }
+    },
     "Eventual" : {
       "localizations" : {
         "da" : {
@@ -685,6 +753,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Éventuel"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סופי"
           }
         },
         "it" : {
@@ -846,6 +920,44 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "g"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "克"
+          }
+        }
+      }
+    },
+    "Glucose level" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blutzuckerspiegel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血糖水平"
+          }
+        }
+      }
+    },
+    "Glucose range" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zielbereich"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血糖范围"
           }
         }
       }
@@ -1036,6 +1148,12 @@
             "state" : "translated",
             "value" : "mg/dL"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mg/dL"
+          }
         }
       }
     },
@@ -1154,6 +1272,33 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "mmol/L"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mmol/L"
+          }
+        }
+      }
+    },
+    "Open the app to update the widget" : {
+      "comment" : "No comment",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne die App, um das Widget zu aktualisieren"
+          }
+        }
+      }
+    },
+    "Preset override" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voreinstellung"
           }
         }
       }
@@ -1350,6 +1495,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mevcut kan şekerinizi ve insülin iletiminizi görün."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看您当前的血糖值和胰岛素输注情况。"
+          }
+        }
+      }
+    },
+    "Start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
           }
         }
       }
