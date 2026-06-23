@@ -132,7 +132,7 @@
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "\n%1$@\n\nAtingeți pictogramele de stare ale CGM și ale pompei de insulină pentru mai multe informații. %2$@ va continua să încerce să finalizeze o buclă, dar verificați eventualele probleme de comunicare cu pompa și CGM-ul dvs."
+            "value" : "\n%1$@\n\nAtingeți pictogramele de stare ale CGM și ale pompei de insulină pentru mai multe informații. %2$@ va continua să încerce să finalizeze o buclă, dar verificați eventualele probleme de comunicare cu pompa și CGM-ul dumneavoastră."
           }
         },
         "ru" : {
@@ -358,12 +358,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "---"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "– – –"
           }
         },
         "it" : {
@@ -1500,7 +1494,7 @@
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loop automat"
+            "value" : "Buclă închisă"
           }
         },
         "ru" : {
@@ -2002,12 +1996,6 @@
             "value" : "גבוה"
           }
         },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HIGH"
-          }
-        },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2362,7 +2350,7 @@
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loop a rulat acum %@"
+            "value" : "Bucla a rulat acum %@"
           }
         },
         "ru" : {
@@ -2451,7 +2439,7 @@
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Avertizare Loop"
+            "value" : "Avertizare buclă"
           }
         },
         "ru" : {
@@ -2511,12 +2499,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "נמוך"
-          }
-        },
-        "hi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LOW"
           }
         },
         "it" : {
@@ -3046,7 +3028,7 @@
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loop manual"
+            "value" : "Buclă deschisă"
           }
         },
         "ru" : {
