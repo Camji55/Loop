@@ -42,6 +42,7 @@ public struct SettingsView: View {
             case cgmPicker
             case pumpPicker
             case servicePicker
+            case mealEntryPicker
         }
         
         enum Sheet: String, Identifiable {
@@ -120,6 +121,11 @@ public struct SettingsView: View {
                     return ActionSheet(
                         title: Text("Add Service", comment: "The title of the add service action sheet in settings"),
                         buttons: serviceChoices
+                    )
+                case .mealEntryPicker:
+                    return ActionSheet(
+                        title: Text("Add Meal Entry", comment: "The title of the add meal entry action sheet in settings"),
+                        buttons: mealEntryChoices
                     )
                 }
             }
@@ -365,12 +371,18 @@ extension SettingsView {
     }
     
     private var mealEntrySection: some View {
-        // Services-style list of available meal-entry plugins, each navigating to its own settings page.
-        // Meal-entry plugins are auto-discovered (no install/onboard step), so there is no "Add" button today;
-        // the list simply reflects everything available.
+        // Services-style section: the active meal-entry plugin is shown as a row (navigating to its settings),
+        // and any other available plugins are offered behind an "Add" button that activates the chosen one.
         Section(header: SectionHeader(label: NSLocalizedString("Meals", comment: "The title of the Meals section in settings"))) {
-            ForEach(viewModel.mealEntryManagers, id: \.identifier) { descriptor in
+            ForEach(viewModel.mealEntryViewModel.activeManagers, id: \.identifier) { descriptor in
                 mealEntryRow(for: descriptor)
+            }
+            if viewModel.mealEntryViewModel.inactiveManagers.count > 0 {
+                LargeButton(action: { actionSheet = .mealEntryPicker },
+                            includeArrow: false,
+                            imageView: plusImage,
+                            label: NSLocalizedString("Add Meal Entry", comment: "The title of the add meal entry button in settings"),
+                            descriptiveText: NSLocalizedString("Tap here to set up a meal entry plugin", comment: "The descriptive text of the add meal entry button in settings"))
             }
         }
     }
@@ -443,6 +455,16 @@ extension SettingsView {
         var result = viewModel.servicesViewModel.inactiveServices().map { availableService in
             ActionSheet.Button.default(Text(availableService.localizedTitle)) {
                 self.viewModel.servicesViewModel.didTapAddService(availableService)
+            }
+        }
+        result.append(.cancel())
+        return result
+    }
+
+    private var mealEntryChoices: [ActionSheet.Button] {
+        var result = viewModel.mealEntryViewModel.inactiveManagers.map { descriptor in
+            ActionSheet.Button.default(Text(descriptor.localizedTitle)) {
+                self.viewModel.mealEntryViewModel.didTapAddManager(descriptor)
             }
         }
         result.append(.cancel())

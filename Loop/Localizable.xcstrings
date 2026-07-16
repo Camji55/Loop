@@ -5511,6 +5511,9 @@
         }
       }
     },
+    "Add Meal Entry" : {
+      "comment" : "The title of the add meal entry action sheet in settings\nThe title of the add meal entry button in settings"
+    },
     "Add predictive line" : {
       "comment" : "Title for predictive line toggle",
       "extractionState" : "stale",
@@ -35459,6 +35462,9 @@
           }
         }
       }
+    },
+    "Tap here to set up a meal entry plugin" : {
+      "comment" : "The descriptive text of the add meal entry button in settings"
     },
     "Tap here to set up a pump" : {
       "comment" : "Descriptive text for button to add pump device",

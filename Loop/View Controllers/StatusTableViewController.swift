@@ -1607,6 +1607,9 @@ final class StatusTableViewController: LoopChartsTableViewController {
                                                   availableServices: { [weak self] in self?.deviceManager.servicesManager.availableServices ?? [] },
                                                   activeServices: { [weak self] in self?.deviceManager.servicesManager.activeServices ?? [] },
                                                   delegate: self)
+        let mealEntryViewModel = MealEntryViewModel(availableManagers: { [weak self] in self?.deviceManager.availableMealEntryManagers ?? [] },
+                                                    activeManagerIdentifier: { [weak self] in self?.deviceManager.activeMealEntryManagerIdentifier },
+                                                    selectManager: { [weak self] identifier in self?.deviceManager.selectMealEntryManager(withIdentifier: identifier) })
         let versionUpdateViewModel = VersionUpdateViewModel(supportManager: supportManager, guidanceColors: .default)
         let viewModel = SettingsViewModel(alertPermissionsChecker: alertPermissionsChecker,
                                           alertMuter: alertMuter,
@@ -1623,7 +1626,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
                                           availableSupports: supportManager.availableSupports,
                                           isOnboardingComplete: onboardingManager.isComplete,
                                           therapySettingsViewModelDelegate: deviceManager,
-                                          mealEntryManagers: deviceManager.availableMealEntryManagers,
+                                          mealEntryViewModel: mealEntryViewModel,
                                           delegate: self)
         let hostingController = DismissibleHostingController(
             rootView: SettingsView(viewModel: viewModel, localizedAppNameAndVersion: supportManager.localizedAppNameAndVersion)

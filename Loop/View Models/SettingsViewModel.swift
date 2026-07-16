@@ -49,6 +49,46 @@ public class DeviceViewModel<T>: ObservableObject {
 public typealias CGMManagerViewModel = DeviceViewModel<CGMManagerDescriptor>
 public typealias PumpManagerViewModel = DeviceViewModel<PumpManagerDescriptor>
 
+/// Drives the Settings "Meals" section, mirroring `ServicesViewModel`: the currently-active meal-entry plugin
+/// is shown as a row, and any other available plugins are offered behind an "Add" button.
+public class MealEntryViewModel: ObservableObject {
+
+    /// All meal-entry plugins available (built-in default + any discovered frameworks).
+    let availableManagers: () -> [MealEntryManagerDescriptor]
+
+    /// The identifier of the plugin that's currently active. There is always exactly one (the built-in default at minimum).
+    let activeManagerIdentifier: () -> String?
+
+    /// Activates the plugin with the given identifier.
+    let selectManager: (_ identifier: String) -> Void
+
+    /// The active plugin(s) — shown as rows, like `activeServices`.
+    var activeManagers: [MealEntryManagerDescriptor] {
+        let activeIdentifier = activeManagerIdentifier()
+        return availableManagers().filter { $0.identifier == activeIdentifier }
+    }
+
+    /// Available plugins that aren't currently active — offered behind the "Add" button, like `inactiveServices`.
+    var inactiveManagers: [MealEntryManagerDescriptor] {
+        let activeIdentifier = activeManagerIdentifier()
+        return availableManagers().filter { $0.identifier != activeIdentifier }
+    }
+
+    public init(availableManagers: @escaping () -> [MealEntryManagerDescriptor] = { [] },
+                activeManagerIdentifier: @escaping () -> String? = { nil },
+                selectManager: @escaping (_ identifier: String) -> Void = { _ in }) {
+        self.availableManagers = availableManagers
+        self.activeManagerIdentifier = activeManagerIdentifier
+        self.selectManager = selectManager
+    }
+
+    func didTapAddManager(_ descriptor: MealEntryManagerDescriptor) {
+        // Notify observers so the section re-reads the (now-changed) active/inactive lists after selection.
+        objectWillChange.send()
+        selectManager(descriptor.identifier)
+    }
+}
+
 public protocol SettingsViewModelDelegate: AnyObject {
     func dosingEnabledChanged(_: Bool)
     func dosingStrategyChanged(_: AutomaticDosingStrategy)
@@ -80,8 +120,8 @@ public class SettingsViewModel: ObservableObject {
     let isOnboardingComplete: Bool
     let therapySettingsViewModelDelegate: TherapySettingsViewModelDelegate?
 
-    /// The available meal-entry plugins (built-in + any discovered frameworks). Drives the Settings meal-entry list.
-    let mealEntryManagers: [MealEntryManagerDescriptor]
+    /// Drives the Settings "Meals" section (active plugin list + "Add" button).
+    let mealEntryViewModel: MealEntryViewModel
 
     @Published var isClosedLoopAllowed: Bool
 
@@ -123,7 +163,7 @@ public class SettingsViewModel: ObservableObject {
                 availableSupports: [SupportUI],
                 isOnboardingComplete: Bool,
                 therapySettingsViewModelDelegate: TherapySettingsViewModelDelegate?,
-                mealEntryManagers: [MealEntryManagerDescriptor] = [],
+                mealEntryViewModel: MealEntryViewModel = MealEntryViewModel(),
                 delegate: SettingsViewModelDelegate?
     ) {
         self.alertPermissionsChecker = alertPermissionsChecker
@@ -141,7 +181,7 @@ public class SettingsViewModel: ObservableObject {
         self.availableSupports = availableSupports
         self.isOnboardingComplete = isOnboardingComplete
         self.therapySettingsViewModelDelegate = therapySettingsViewModelDelegate
-        self.mealEntryManagers = mealEntryManagers
+        self.mealEntryViewModel = mealEntryViewModel
         self.delegate = delegate
 
         // This strangeness ensures the composed ViewModels' (ObservableObjects') changes get reported to this ViewModel (ObservableObject)
@@ -161,7 +201,11 @@ public class SettingsViewModel: ObservableObject {
             self?.objectWillChange.send()
         }
         .store(in: &cancellables)
-        
+        mealEntryViewModel.objectWillChange.sink { [weak self] in
+            self?.objectWillChange.send()
+        }
+        .store(in: &cancellables)
+
         isClosedLoopAllowed
             .assign(to: \.isClosedLoopAllowed, on: self)
             .store(in: &cancellables)
