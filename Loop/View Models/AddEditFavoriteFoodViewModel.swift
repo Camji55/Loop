@@ -29,6 +29,10 @@ final class AddEditFavoriteFoodViewModel: ObservableObject {
     
     @Published var foodType = ""
 
+    // Optional macros (grams). A favorite may carry these when created via macro entry.
+    @Published var fatQuantity: Double? = nil
+    @Published var proteinQuantity: Double? = nil
+
     @Published var absorptionTime: TimeInterval
     let minAbsorptionTime = LoopConstants.minCarbAbsorptionTime
     let maxAbsorptionTime = LoopConstants.maxCarbAbsorptionTime
@@ -48,31 +52,37 @@ final class AddEditFavoriteFoodViewModel: ObservableObject {
             self.carbsQuantity = food.carbsQuantity.doubleValue(for: preferredCarbUnit)
             self.foodType = food.foodType
             self.absorptionTime = food.absorptionTime
+            self.fatQuantity = food.fatQuantity?.doubleValue(for: preferredCarbUnit)
+            self.proteinQuantity = food.proteinQuantity?.doubleValue(for: preferredCarbUnit)
         }
         else {
             self.absorptionTime = .hours(3)
         }
     }
-    
-    init(carbsQuantity: Double?, foodType: String, absorptionTime: TimeInterval, onSave: @escaping (NewFavoriteFood) -> ()) {
+
+    init(carbsQuantity: Double?, foodType: String, absorptionTime: TimeInterval, fatQuantity: Double? = nil, proteinQuantity: Double? = nil, onSave: @escaping (NewFavoriteFood) -> ()) {
         self.onSave = onSave
         self.carbsQuantity = carbsQuantity
         self.foodType = foodType
         self.absorptionTime = absorptionTime
+        self.fatQuantity = fatQuantity
+        self.proteinQuantity = proteinQuantity
     }
     
     var originalFavoriteFood: StoredFavoriteFood?
     var updatedFavoriteFood: NewFavoriteFood? {
         if let quantity = carbsQuantity, quantity != 0, name != "", foodType != "" {
-            if let o = originalFavoriteFood, o.name == name, o.carbsQuantity.doubleValue(for: preferredCarbUnit) == carbsQuantity && o.foodType == foodType && o.absorptionTime == absorptionTime {
+            if let o = originalFavoriteFood, o.name == name, o.carbsQuantity.doubleValue(for: preferredCarbUnit) == carbsQuantity && o.foodType == foodType && o.absorptionTime == absorptionTime && o.fatQuantity?.doubleValue(for: preferredCarbUnit) == fatQuantity && o.proteinQuantity?.doubleValue(for: preferredCarbUnit) == proteinQuantity {
                 return nil  // No changes were made
             }
-            
+
             return NewFavoriteFood(
                 name: name,
                 carbsQuantity: HKQuantity(unit: preferredCarbUnit, doubleValue: quantity),
                 foodType: foodType,
-                absorptionTime: absorptionTime
+                absorptionTime: absorptionTime,
+                fatQuantity: fatQuantity.map { HKQuantity(unit: preferredCarbUnit, doubleValue: $0) },
+                proteinQuantity: proteinQuantity.map { HKQuantity(unit: preferredCarbUnit, doubleValue: $0) }
             )
         }
         else {

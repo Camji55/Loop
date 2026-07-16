@@ -81,14 +81,11 @@ public struct SettingsView: View {
                         configurationSection
                     }
                     deviceSettingsSection
-                    if FeatureFlags.allowExperimentalFeatures {
-                        favoriteFoodsSection
-                    }
                     if (viewModel.pumpManagerSettingsViewModel.isTestingDevice || viewModel.cgmManagerSettingsViewModel.isTestingDevice) && viewModel.showDeleteTestData {
                         deleteDataSection
                     }
-                }
-                Group {
+                    mealEntrySection
+
                     if viewModel.servicesViewModel.showServices {
                         servicesSection
                     }
@@ -251,7 +248,7 @@ extension SettingsView {
     }
 
     private var alertManagementSection: some View {
-        Section {
+        Section(header: SectionHeader(label: NSLocalizedString("Alerts", comment: "The title of the Alerts section in settings"))) {
             NavigationLink(destination: AlertManagementView(checker: viewModel.alertPermissionsChecker, alertMuter: viewModel.alertMuter)) {
                 LargeButton(
                     action: {},
@@ -317,7 +314,7 @@ extension SettingsView {
     }
 
     private var deviceSettingsSection: some View {
-        Section {
+        Section(header: SectionHeader(label: NSLocalizedString("Devices", comment: "The title of the Devices section in settings"))) {
             pumpSection
             cgmSection
         }
@@ -367,16 +364,50 @@ extension SettingsView {
         }
     }
     
-    private var favoriteFoodsSection: some View {
-        Section {
-            LargeButton(action: { sheet = .favoriteFoods },
-                        includeArrow: true,
-                        imageView: Image("Favorite Foods Icon").renderingMode(.template).foregroundColor(carbTintColor),
-                        label: "Favorite Foods",
-                        descriptiveText: "Simplify Carb Entry")
+    private var mealEntrySection: some View {
+        // Services-style list of available meal-entry plugins, each navigating to its own settings page.
+        // Meal-entry plugins are auto-discovered (no install/onboard step), so there is no "Add" button today;
+        // the list simply reflects everything available.
+        Section(header: SectionHeader(label: NSLocalizedString("Meals", comment: "The title of the Meals section in settings"))) {
+            ForEach(viewModel.mealEntryManagers, id: \.identifier) { descriptor in
+                mealEntryRow(for: descriptor)
+            }
         }
     }
-    
+
+    @ViewBuilder
+    private func mealEntryRow(for descriptor: MealEntryManagerDescriptor) -> some View {
+        if descriptor.identifier == DefaultMealEntryManager.pluginIdentifier {
+            NavigationLink {
+                MealEntrySettingsView()
+            } label: {
+                mealEntryRowLabel(title: descriptor.localizedTitle,
+                                  descriptiveText: NSLocalizedString("Entry style & favorite foods", comment: "Descriptive text for the built-in meal entry setting row"))
+            }
+        } else {
+            // A third-party meal-entry plugin. Its own settings page is future work; show a non-navigating row for now.
+            mealEntryRowLabel(title: descriptor.localizedTitle, descriptiveText: "")
+        }
+    }
+
+    private func mealEntryRowLabel(title: String, descriptiveText: String) -> some View {
+        // Match `LargeButton`'s icon framing/spacing so these rows align with the other plugin rows.
+        HStack(spacing: 15) {
+            Image("Favorite Foods Icon")
+                .renderingMode(.template)
+                .foregroundColor(carbTintColor)
+                .frame(maxWidth: 60, maxHeight: 60)
+            VStack(alignment: .leading) {
+                Text(title)
+                    .foregroundColor(.primary)
+                if !descriptiveText.isEmpty {
+                    DescriptiveText(label: descriptiveText)
+                }
+            }
+        }
+        .padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+    }
+
     private var cgmChoices: [ActionSheet.Button] {
         var result = viewModel.cgmManagerSettingsViewModel.availableDevices
             .sorted(by: {$0.localizedTitle < $1.localizedTitle})

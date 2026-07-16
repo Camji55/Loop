@@ -47,11 +47,33 @@ final class CarbEntryViewModel: ObservableObject {
     @Published var alert: CarbEntryViewModel.Alert?
     @Published var warnings: Set<Warning> = []
 
-    @Published var bolusViewModel: BolusEntryViewModel?
-    
+    /// Called when the user has finished entering a meal. The host (meal-entry plugin) is responsible for acting on the
+    /// resulting entry (e.g. reporting a `MealNutrition` and continuing to bolus). Set by the plugin that vends this view.
+    var onComplete: ((NewCarbEntry) -> Void)?
+
     let shouldBeginEditingQuantity: Bool
-    
+
+    /// The entry mode: emoji food-type picker, or macro (fat/protein) entry with a derived absorption time.
+    /// Mutable so the user can swap methods from the navigation-title menu; the choice is persisted.
+    @Published var mode: MealEntryMode
+
+    /// Switches the entry method (and persists it as the default). Re-derives the absorption time when switching to
+    /// macro entry, unless the user has manually adjusted it.
+    func selectMode(_ newMode: MealEntryMode) {
+        guard newMode != mode else { return }
+        mode = newMode
+        UserDefaults.standard.mealEntryMode = newMode
+        if newMode == .macro, !absorptionTimeWasEdited {
+            absorptionEditIsProgrammatic = true
+            absorptionTime = derivedAbsorptionTime
+        }
+    }
+
     @Published var carbsQuantity: Double? = nil
+
+    // Macro entry (used when `mode == .macro`). Grams.
+    @Published var fatQuantity: Double? = nil
+    @Published var proteinQuantity: Double? = nil
     var preferredCarbUnit = HKUnit.gram()
     var maxCarbEntryQuantity = LoopConstants.maxCarbEntryQuantity
     var warningCarbEntryQuantity = LoopConstants.warningCarbEntryQuantity
@@ -87,21 +109,24 @@ final class CarbEntryViewModel: ObservableObject {
     private lazy var cancellables = Set<AnyCancellable>()
     
     /// Initalizer for when`CarbEntryView` is presented from the home screen
-    init(delegate: CarbEntryViewModelDelegate) {
+    init(delegate: CarbEntryViewModelDelegate, mode: MealEntryMode = .emoji) {
         self.delegate = delegate
+        self.mode = mode
         self.absorptionTime = delegate.defaultAbsorptionTimes.medium
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
         self.shouldBeginEditingQuantity = true
-        
+
         observeAbsorptionTimeChange()
         observeFavoriteFoodChange()
         observeFavoriteFoodIndexChange()
+        observeMacroChanges()
         observeLoopUpdates()
     }
-    
+
     /// Initalizer for when`CarbEntryView` has an entry to edit
     init(delegate: CarbEntryViewModelDelegate, originalCarbEntry: StoredCarbEntry) {
         self.delegate = delegate
+        self.mode = .emoji
         self.originalCarbEntry = originalCarbEntry
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
 
@@ -129,13 +154,48 @@ final class CarbEntryViewModel: ObservableObject {
                 date: date,
                 quantity: HKQuantity(unit: preferredCarbUnit, doubleValue: quantity),
                 startDate: time,
-                foodType: usesCustomFoodType ? foodType : selectedDefaultAbsorptionTimeEmoji,
+                foodType: resolvedFoodType,
                 absorptionTime: absorptionTime
             )
         }
         else {
             return nil
         }
+    }
+
+    private var resolvedFoodType: String {
+        switch mode {
+        case .macro:
+            return "🍽️"
+        case .emoji:
+            return usesCustomFoodType ? foodType : selectedDefaultAbsorptionTimeEmoji
+        }
+    }
+
+    // MARK: - Macro-derived absorption (macro mode)
+
+    /// The Fat-Protein Units for the currently-entered macros.
+    var fatProteinUnits: Double {
+        MacroAbsorptionModel.fatProteinUnits(fatGrams: fatQuantity ?? 0, proteinGrams: proteinQuantity ?? 0)
+    }
+
+    /// The carb absorption time derived from the currently-entered macros.
+    var derivedAbsorptionTime: TimeInterval {
+        MacroAbsorptionModel.absorptionTime(
+            fatGrams: fatQuantity ?? 0,
+            proteinGrams: proteinQuantity ?? 0,
+            defaultAbsorptionTimes: defaultAbsorptionTimes
+        )
+    }
+
+    /// Total fat as an `HKQuantity`, if entered.
+    var fatHKQuantity: HKQuantity? {
+        fatQuantity.map { HKQuantity(unit: preferredCarbUnit, doubleValue: $0) }
+    }
+
+    /// Total protein as an `HKQuantity`, if entered.
+    var proteinHKQuantity: HKQuantity? {
+        proteinQuantity.map { HKQuantity(unit: preferredCarbUnit, doubleValue: $0) }
     }
     
     var saveFavoriteFoodButtonDisabled: Bool {
@@ -177,42 +237,30 @@ final class CarbEntryViewModel: ObservableObject {
         }
         
         Task { @MainActor in
-            setBolusViewModel()
+            completeMeal()
         }
     }
-        
-    @MainActor private func setBolusViewModel() {
-        let viewModel = BolusEntryViewModel(
-            delegate: delegate,
-            screenWidth: UIScreen.main.bounds.width,
-            originalCarbEntry: originalCarbEntry,
-            potentialCarbEntry: updatedCarbEntry,
-            selectedCarbAbsorptionTimeEmoji: selectedDefaultAbsorptionTimeEmoji
-        )
-        Task {
-            await viewModel.generateRecommendationAndStartObserving()
-        }
-        
-        viewModel.analyticsServicesManager = delegate?.analyticsServicesManager
-        bolusViewModel = viewModel
-        
-        delegate?.analyticsServicesManager.didDisplayBolusScreen()
+
+    /// Hands the finished carb entry back to the host via `onComplete`. The host owns the bolus/save flow.
+    @MainActor private func completeMeal() {
+        guard let entry = updatedCarbEntry else { return }
+        onComplete?(entry)
     }
-    
+
     func clearAlert() {
         self.alert = nil
     }
-    
+
     func clearAlertAndContinueToBolus() {
         self.alert = nil
         Task { @MainActor in
-            setBolusViewModel()
+            completeMeal()
         }
     }
     
     // MARK: - Favorite Foods
     func onFavoriteFoodSave(_ food: NewFavoriteFood) {
-        let newStoredFood = StoredFavoriteFood(name: food.name, carbsQuantity: food.carbsQuantity, foodType: food.foodType, absorptionTime: food.absorptionTime)
+        let newStoredFood = StoredFavoriteFood(name: food.name, carbsQuantity: food.carbsQuantity, foodType: food.foodType, absorptionTime: food.absorptionTime, fatQuantity: food.fatQuantity, proteinQuantity: food.proteinQuantity)
         favoriteFoods.append(newStoredFood)
         selectedFavoriteFoodIndex = favoriteFoods.count - 1
     }
@@ -245,6 +293,8 @@ final class CarbEntryViewModel: ObservableObject {
             self.absorptionTime = defaultAbsorptionTimes.medium
             self.absorptionTimeWasEdited = false
             self.usesCustomFoodType = false
+            self.fatQuantity = nil
+            self.proteinQuantity = nil
         }
         else {
             let food = favoriteFoods[index]
@@ -253,7 +303,27 @@ final class CarbEntryViewModel: ObservableObject {
             self.absorptionTime = food.absorptionTime
             self.absorptionTimeWasEdited = true
             self.usesCustomFoodType = true
+            // One combined list: fill macros only when this favorite carries them and we're in macro mode.
+            // The favorite's stored absorption is kept (absorptionTimeWasEdited == true prevents re-derivation).
+            if mode == .macro {
+                self.fatQuantity = food.fatQuantity?.doubleValue(for: preferredCarbUnit)
+                self.proteinQuantity = food.proteinQuantity?.doubleValue(for: preferredCarbUnit)
+            }
         }
+    }
+
+    /// In macro mode, re-derive the absorption time from the macros whenever they change — unless the user has
+    /// manually adjusted the absorption time (mirrors the emoji-selection behavior).
+    private func observeMacroChanges() {
+        Publishers.CombineLatest($fatQuantity, $proteinQuantity)
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _, _ in
+                guard let self, self.mode == .macro, !self.absorptionTimeWasEdited else { return }
+                self.absorptionEditIsProgrammatic = true
+                self.absorptionTime = self.derivedAbsorptionTime
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Utility

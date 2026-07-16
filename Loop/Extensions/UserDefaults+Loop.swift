@@ -17,6 +17,17 @@ extension UserDefaults {
         case loopNotRunningNotifications = "com.loopkit.Loop.loopNotRunningNotifications"
         case inFlightAutomaticDose = "com.loopkit.Loop.inFlightAutomaticDose"
         case favoriteFoods = "com.loopkit.Loop.favoriteFoods"
+        case mealEntryMode = "com.loopkit.Loop.mealEntryMode"
+    }
+
+    /// The selected meal-entry mode for the built-in meal-entry plugin. Defaults to `.emoji`.
+    var mealEntryMode: MealEntryMode {
+        get {
+            (string(forKey: Key.mealEntryMode.rawValue)).flatMap(MealEntryMode.init(rawValue:)) ?? .emoji
+        }
+        set {
+            set(newValue.rawValue, forKey: Key.mealEntryMode.rawValue)
+        }
     }
 
     var legacyPumpManagerRawValue: PumpManager.RawValue? {

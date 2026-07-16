@@ -30,6 +30,9 @@ final class CarbAbsorptionViewController: LoopChartsTableViewController, Identif
 
     var automaticDosingStatus: AutomaticDosingStatus!
 
+    /// Coordinates presentation of the active meal-entry plugin from the "+" action.
+    private lazy var mealEntryCoordinator = MealEntryCoordinator(deviceManager: deviceManager)
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -494,8 +497,11 @@ final class CarbAbsorptionViewController: LoopChartsTableViewController, Identif
         tableView.deselectRow(at: indexPath, animated: true)
         
         let originalCarbEntry = carbStatuses[indexPath.row].entry
-        
+
         let viewModel = CarbEntryViewModel(delegate: deviceManager, originalCarbEntry: originalCarbEntry)
+        viewModel.onComplete = { [weak self] entry in
+            self?.pushBolusForEditedEntry(entry, replacing: originalCarbEntry)
+        }
         let carbEntryView = CarbEntryView(viewModel: viewModel)
             .environmentObject(deviceManager.displayGlucosePreference)
             .environment(\.dismissAction, carbEditWasCanceled)
@@ -513,19 +519,30 @@ final class CarbAbsorptionViewController: LoopChartsTableViewController, Identif
     
     // MARK: - Navigation
     @IBAction func presentCarbEntryScreen() {
-        if FeatureFlags.simpleBolusCalculatorEnabled && !automaticDosingStatus.automaticDosingEnabled {
-            let viewModel = SimpleBolusViewModel(delegate: deviceManager, displayMealEntry: true)
-            let bolusEntryView = SimpleBolusView(viewModel: viewModel).environmentObject(DisplayGlucosePreference(displayGlucoseUnit: .milligramsPerDeciliter))
-            let hostingController = DismissibleHostingController(rootView: bolusEntryView, isModalInPresentation: false)
-            let navigationWrapper = UINavigationController(rootViewController: hostingController)
-            hostingController.navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: navigationWrapper, action: #selector(dismissWithAnimation))
-            present(navigationWrapper, animated: true)
-        } else {
-            let viewModel = CarbEntryViewModel(delegate: deviceManager)
-            let carbEntryView = CarbEntryView(viewModel: viewModel)
-                .environmentObject(deviceManager.displayGlucosePreference)
-            let hostingController = DismissibleHostingController(rootView: carbEntryView, isModalInPresentation: false)
-            present(hostingController, animated: true)
+        // Meal entry is vended by the active meal-entry plugin (defaults to the built-in DefaultMealEntryManager).
+        mealEntryCoordinator.presentMealEntry(from: self)
+    }
+
+    /// Continues the edit-existing-entry flow into bolus, pushing onto this controller's navigation stack.
+    /// (Editing an existing entry is a distinct, in-app flow, not routed through the meal-entry plugin.)
+    private func pushBolusForEditedEntry(_ entry: NewCarbEntry, replacing originalCarbEntry: StoredCarbEntry?) {
+        let bolusViewModel = BolusEntryViewModel(
+            delegate: deviceManager,
+            screenWidth: UIScreen.main.bounds.width,
+            originalCarbEntry: originalCarbEntry,
+            potentialCarbEntry: entry,
+            selectedCarbAbsorptionTimeEmoji: ""
+        )
+        Task {
+            await bolusViewModel.generateRecommendationAndStartObserving()
         }
+        bolusViewModel.analyticsServicesManager = deviceManager.analyticsServicesManager
+        deviceManager.analyticsServicesManager.didDisplayBolusScreen()
+
+        let bolusView = BolusEntryView(viewModel: bolusViewModel)
+            .environmentObject(deviceManager.displayGlucosePreference)
+            .environment(\.dismissAction, carbEditWasCanceled)
+        let hostingController = UIHostingController(rootView: bolusView)
+        navigationController?.pushViewController(hostingController, animated: true)
     }
 }

@@ -36,7 +36,7 @@ final class FavoriteFoodsViewModel: ObservableObject {
     
     func onFoodSave(_ newFood: NewFavoriteFood) {
         if isAddViewActive {
-            let newStoredFood = StoredFavoriteFood(name: newFood.name, carbsQuantity: newFood.carbsQuantity, foodType: newFood.foodType, absorptionTime: newFood.absorptionTime)
+            let newStoredFood = StoredFavoriteFood(name: newFood.name, carbsQuantity: newFood.carbsQuantity, foodType: newFood.foodType, absorptionTime: newFood.absorptionTime, fatQuantity: newFood.fatQuantity, proteinQuantity: newFood.proteinQuantity)
             withAnimation {
                 favoriteFoods.append(newStoredFood)
             }
@@ -47,6 +47,8 @@ final class FavoriteFoodsViewModel: ObservableObject {
             selectedFood.carbsQuantity = newFood.carbsQuantity
             selectedFood.foodType = newFood.foodType
             selectedFood.absorptionTime = newFood.absorptionTime
+            selectedFood.fatQuantity = newFood.fatQuantity
+            selectedFood.proteinQuantity = newFood.proteinQuantity
             favoriteFoods[selectedFooxIndex] = selectedFood
             isEditViewActive = false
         }

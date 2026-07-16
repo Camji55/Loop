@@ -145,7 +145,69 @@ final class DeviceDataManager {
     @PersistedProperty(key: "PumpManagerState")
     var rawPumpManager: PumpManager.RawValue?
 
-    
+    // MARK: - Meal Entry
+
+    /// The active meal-entry plugin. Vends the meal-entry UI and produces a `MealNutrition` for the app. Defaults to
+    /// the built-in `DefaultMealEntryManager`.
+    var mealEntryManager: MealEntryManager? {
+        didSet {
+            dispatchPrecondition(condition: .onQueue(.main))
+            setupMealEntry()
+            rawMealEntryManager = mealEntryManager?.rawValue
+        }
+    }
+
+    @PersistedProperty(key: "MealEntryManagerState")
+    var rawMealEntryManager: MealEntryManager.RawValue?
+
+    private func setupMealEntry() {
+        // The built-in default plugin needs a reference to the app to vend its UI.
+        if let defaultManager = mealEntryManager as? DefaultMealEntryManager {
+            defaultManager.host = self
+        }
+    }
+
+    var availableMealEntryManagers: [MealEntryManagerDescriptor] {
+        return pluginManager.availableMealEntryManagers + availableStaticMealEntryManagers
+    }
+
+    /// The identifier of the currently-active meal-entry plugin.
+    var activeMealEntryManagerIdentifier: String? {
+        mealEntryManager?.pluginIdentifier
+    }
+
+    /// Switches the active meal-entry plugin. Assigning `mealEntryManager` here (outside init) fires its `didSet`,
+    /// which persists the selection and wires up the built-in host.
+    func selectMealEntryManager(withIdentifier identifier: String) {
+        guard identifier != activeMealEntryManagerIdentifier,
+              let managerType = mealEntryManagerTypeByIdentifier(identifier)
+        else {
+            return
+        }
+        mealEntryManager = managerType.init(rawState: [:])
+    }
+
+    func mealEntryManagerTypeByIdentifier(_ identifier: String) -> MealEntryManagerUI.Type? {
+        return pluginManager.getMealEntryManagerTypeByIdentifier(identifier) ?? staticMealEntryManagersByIdentifier[identifier] as? MealEntryManagerUI.Type
+    }
+
+    private func mealEntryManagerTypeFromRawValue(_ rawValue: [String: Any]) -> MealEntryManager.Type? {
+        guard let managerIdentifier = rawValue["managerIdentifier"] as? String else {
+            return nil
+        }
+        return mealEntryManagerTypeByIdentifier(managerIdentifier) ?? staticMealEntryManagersByIdentifier[managerIdentifier]
+    }
+
+    func mealEntryManagerFromRawValue(_ rawValue: [String: Any]) -> MealEntryManager? {
+        guard let rawState = rawValue["state"] as? MealEntryManager.RawStateValue,
+              let Manager = mealEntryManagerTypeFromRawValue(rawValue)
+        else {
+            return nil
+        }
+        return Manager.init(rawState: rawState)
+    }
+
+
     var doseEnactor = DoseEnactor()
     
     // MARK: Stores
@@ -378,6 +440,14 @@ final class DeviceDataManager {
             if cgmManager == nil && pumpManagerTypeFromRawValue(cgmManagerRawValue) != nil {
                 cgmManager = pumpManager as? CGMManager
             }
+        }
+
+        if let mealEntryManagerRawValue = rawMealEntryManager {
+            mealEntryManager = mealEntryManagerFromRawValue(mealEntryManagerRawValue)
+        }
+        // Meal entry always works out of the box: fall back to the built-in default plugin.
+        if mealEntryManager == nil {
+            mealEntryManager = DefaultMealEntryManager()
         }
 
         //TODO The instantiation of these non-device related managers should be moved to LoopAppManager, and then LoopAppManager can wire up the connections between them.
@@ -1296,6 +1366,17 @@ extension DeviceDataManager: CarbStoreDelegate {
     }
 
     func carbStore(_ carbStore: CarbStore, didError error: CarbStore.CarbStoreError) {}
+}
+
+// MARK: - DefaultMealEntryManagerHost
+extension DeviceDataManager: DefaultMealEntryManagerHost {
+    var carbEntryViewModelDelegate: CarbEntryViewModelDelegate { self }
+
+    var simpleBolusViewModelDelegate: SimpleBolusViewModelDelegate { self }
+
+    var prefersSimpleMealEntry: Bool {
+        FeatureFlags.simpleBolusCalculatorEnabled && !automaticDosingStatus.automaticDosingEnabled
+    }
 }
 
 // MARK: - DoseStoreDelegate

@@ -33,22 +33,10 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
     }
     
     var body: some View {
+        // The host meal-entry plugin provides the navigation controller, so this view no longer wraps itself in a
+        // NavigationView. On continue, the view model reports the entry to the host via `onComplete`.
         if isNewEntry {
-            NavigationView {
-                let title = NSLocalizedString("carb-entry-title-add", value: "Add Carb Entry", comment: "The title of the view controller to create a new carb entry")
-                content
-                    .navigationBarTitle(title, displayMode: .inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            dismissButton
-                        }
-                        
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            continueButton
-                        }
-                    }
-                
-            }
+            newEntryBody
         }
         else {
             content
@@ -58,6 +46,59 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
                     }
                 }
         }
+    }
+
+    @ViewBuilder
+    private var newEntryBody: some View {
+        let title = NSLocalizedString("carb-entry-title-add", value: "Add Carb Entry", comment: "The title of the view controller to create a new carb entry")
+        let base = content
+            .navigationBarTitle(title, displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    dismissButton
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    continueButton
+                }
+            }
+
+        // Tapping the navigation title reveals a menu to swap entry methods (iOS 16+ native title menu).
+        if #available(iOS 16.0, *) {
+            base.toolbarTitleMenu {
+                modeMenuContent
+            }
+        } else {
+            base
+        }
+    }
+
+    @ViewBuilder
+    private var modeMenuContent: some View {
+        Picker(selection: Binding(get: { viewModel.mode }, set: { viewModel.selectMode($0) })) {
+            ForEach(MealEntryMode.allCases) { mode in
+                Text(mode.title).tag(mode)
+            }
+        } label: {
+            Text("Entry Style", comment: "Label for the meal entry style menu")
+        }
+        .pickerStyle(.inline)
+    }
+
+    private var carbsRowTitle: String {
+        viewModel.mode == .macro
+            ? NSLocalizedString("Carbohydrates", comment: "Label for carbohydrate quantity entry row in macro entry mode")
+            : NSLocalizedString("Amount Consumed", comment: "Label for carb quantity entry row on carb entry screen")
+    }
+
+    private var fatProteinUnitsRow: some View {
+        HStack {
+            Text("Fat-Protein Units", comment: "Label for the fat-protein units on carb entry screen")
+            Spacer()
+            Text(String(format: "%.1f", viewModel.fatProteinUnits))
+        }
+        .font(.caption)
+        .foregroundColor(.secondary)
     }
     
     private var content: some View {
@@ -76,22 +117,18 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
                 if isNewEntry, FeatureFlags.allowExperimentalFeatures {
                     favoriteFoodsCard
                 }
-                
-                let isBolusViewActive = Binding(get: { viewModel.bolusViewModel != nil }, set: { _, _ in viewModel.bolusViewModel = nil })
-                NavigationLink(destination: bolusView, isActive: isBolusViewActive) {
-                    EmptyView()
-                }
-                .frame(width: 0, height: 0)
-                .opacity(0)
-                .accessibility(hidden: true)
             }
         }
         .alert(item: $viewModel.alert, content: alert(for:))
         .sheet(isPresented: $showAddFavoriteFood, onDismiss: clearExpandedRow) {
-            AddEditFavoriteFoodView(carbsQuantity: $viewModel.carbsQuantity.wrappedValue, foodType: $viewModel.foodType.wrappedValue, absorptionTime: $viewModel.absorptionTime.wrappedValue, onSave: onFavoriteFoodSave(_:))
+            AddEditFavoriteFoodView(carbsQuantity: $viewModel.carbsQuantity.wrappedValue, foodType: $viewModel.foodType.wrappedValue, absorptionTime: $viewModel.absorptionTime.wrappedValue, fatQuantity: $viewModel.fatQuantity.wrappedValue, proteinQuantity: $viewModel.proteinQuantity.wrappedValue, onSave: onFavoriteFoodSave(_:))
         }
         .sheet(isPresented: $showHowAbsorptionTimeWorks) {
-            HowAbsorptionTimeWorksView()
+            if viewModel.mode == .macro {
+                MacroAbsorptionInfoView(fatGrams: viewModel.fatQuantity ?? 0, proteinGrams: viewModel.proteinQuantity ?? 0, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
+            } else {
+                HowAbsorptionTimeWorksView()
+            }
         }
     }
     
@@ -101,35 +138,44 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
             let timeFocused: Binding<Bool> = Binding(get: { expandedRow == .time }, set: { expandedRow = $0 ? .time : nil })
             let foodTypeFocused: Binding<Bool> = Binding(get: { expandedRow == .foodType }, set: { expandedRow = $0 ? .foodType : nil })
             let absorptionTimeFocused: Binding<Bool> = Binding(get: { expandedRow == .absorptionTime }, set: { expandedRow = $0 ? .absorptionTime : nil })
-            
-            CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: amountConsumedFocused, title: NSLocalizedString("Amount Consumed", comment: "Label for carb quantity entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+            DatePickerRow(date: $viewModel.time, isFocused: timeFocused, minimumDate: viewModel.minimumDate, maximumDate: viewModel.maximumDate)
 
             CardSectionDivider()
-            
-            DatePickerRow(date: $viewModel.time, isFocused: timeFocused, minimumDate: viewModel.minimumDate, maximumDate: viewModel.maximumDate)
-            
+
+            CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: amountConsumedFocused, title: carbsRowTitle, preferredCarbUnit: viewModel.preferredCarbUnit)
+
             CardSectionDivider()
-            
-            FoodTypeRow(foodType: $viewModel.foodType, absorptionTime: $viewModel.absorptionTime, selectedDefaultAbsorptionTimeEmoji: $viewModel.selectedDefaultAbsorptionTimeEmoji, usesCustomFoodType: $viewModel.usesCustomFoodType, absorptionTimeWasEdited: $viewModel.absorptionTimeWasEdited, isFocused: foodTypeFocused, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
-            
-            CardSectionDivider()
-            
-            AbsorptionTimePickerRow(absorptionTime: $viewModel.absorptionTime, isFocused: absorptionTimeFocused, validDurationRange: viewModel.absorptionRimesRange, showHowAbsorptionTimeWorks: $showHowAbsorptionTimeWorks)
-                .padding(.bottom, 2)
+
+            if viewModel.mode == .macro {
+                let fatFocused: Binding<Bool> = Binding(get: { expandedRow == .fat }, set: { expandedRow = $0 ? .fat : nil })
+                let proteinFocused: Binding<Bool> = Binding(get: { expandedRow == .protein }, set: { expandedRow = $0 ? .protein : nil })
+
+                CarbQuantityRow(quantity: $viewModel.fatQuantity, isFocused: fatFocused, title: NSLocalizedString("Fat", comment: "Label for fat entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+                CardSectionDivider()
+
+                CarbQuantityRow(quantity: $viewModel.proteinQuantity, isFocused: proteinFocused, title: NSLocalizedString("Protein", comment: "Label for protein entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+                CardSectionDivider()
+
+                AbsorptionTimePickerRow(absorptionTime: $viewModel.absorptionTime, isFocused: absorptionTimeFocused, validDurationRange: viewModel.absorptionRimesRange, showHowAbsorptionTimeWorks: $showHowAbsorptionTimeWorks)
+                    .padding(.bottom, 2)
+
+                fatProteinUnitsRow
+            } else {
+                FoodTypeRow(foodType: $viewModel.foodType, absorptionTime: $viewModel.absorptionTime, selectedDefaultAbsorptionTimeEmoji: $viewModel.selectedDefaultAbsorptionTimeEmoji, usesCustomFoodType: $viewModel.usesCustomFoodType, absorptionTimeWasEdited: $viewModel.absorptionTimeWasEdited, isFocused: foodTypeFocused, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
+
+                CardSectionDivider()
+
+                AbsorptionTimePickerRow(absorptionTime: $viewModel.absorptionTime, isFocused: absorptionTimeFocused, validDurationRange: viewModel.absorptionRimesRange, showHowAbsorptionTimeWorks: $showHowAbsorptionTimeWorks)
+                    .padding(.bottom, 2)
+            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal)
         .background(CardBackground())
         .padding(.horizontal)
-    }
-    
-    @ViewBuilder
-    private var bolusView: some View {
-        if let viewModel = viewModel.bolusViewModel {
-            BolusEntryView(viewModel: viewModel)
-                .environmentObject(displayGlucosePreference)
-                .environment(\.dismissAction, dismiss)
-        }
     }
     
     private func clearExpandedRow() {
@@ -314,6 +360,6 @@ extension CarbEntryView {
 
 extension CarbEntryView {
     enum Row {
-        case amountConsumed, time, foodType, absorptionTime, favoriteFoodSelection
+        case amountConsumed, time, foodType, fat, protein, absorptionTime, favoriteFoodSelection
     }
 }

@@ -14,7 +14,7 @@ public struct FavoriteFoodDetailView: View {
     let food: StoredFavoriteFood?
     let onFoodDelete: (StoredFavoriteFood) -> Void
     
-    @State private var isConfirmingDelete = false
+    @State private var isConfirmingDelete: Bool
     
     let carbFormatter: QuantityFormatter
     let absorptionTimeFormatter: DateComponentsFormatter
@@ -29,18 +29,30 @@ public struct FavoriteFoodDetailView: View {
         self.preferredCarbUnit = preferredCarbUnit
     }
     
+    private func infoRows(for food: StoredFavoriteFood) -> [(field: String, value: String)] {
+        var rows: [(field: String, value: String)] = [
+            (String(localized: "Name", comment: "Label for name row on add favorite food screen"), food.name),
+            (String(localized: "Carb Quantity", comment: "Label for carb quantity row on add favorite food screen"), food.carbsString(formatter: carbFormatter))
+        ]
+        if let fat = food.fatQuantity, let fatString = carbFormatter.string(from: fat) {
+            rows.append((String(localized: "Fat", comment: "Label for fat row on favorite food detail screen"), fatString))
+        }
+        if let protein = food.proteinQuantity, let proteinString = carbFormatter.string(from: protein) {
+            rows.append((String(localized: "Protein", comment: "Label for protein row on favorite food detail screen"), proteinString))
+        }
+        rows.append(contentsOf: [
+            (String(localized: "Food Type", comment: "Label for food type entry on add favorite food screen"), food.foodType),
+            (String(localized: "Absorption Time", comment: "Label for food absorption entry on add favorite food screen"), food.absorptionTimeString(formatter: absorptionTimeFormatter))
+        ])
+        return rows
+    }
+
     public var body: some View {
         if let food {
             List {
                 Section("Information") {
                     VStack(spacing: 16) {
-                        let rows: [(field: String, value: String)] = [
-                            (String(localized: "Name", comment: "Label for name row on add favorite food screen"), food.name),
-                            (String(localized: "Carb Quantity", comment: "Label for carb quantity row on add favorite food screen"), food.carbsString(formatter: carbFormatter)),
-                            (String(localized:"Food Type", comment: "Label for food type entry on add favorite food screen"), food.foodType),
-                            (String(localized: "Absorption Time", comment: "Label for food absorption entry on add favorite food screen"), food.absorptionTimeString(formatter: absorptionTimeFormatter))
-                        ]
-                        ForEach(rows, id: \.field) { row in
+                        ForEach(infoRows(for: food), id: \.field) { row in
                             HStack {
                                 Text(row.field)
                                     .font(.subheadline)

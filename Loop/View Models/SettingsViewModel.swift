@@ -80,6 +80,9 @@ public class SettingsViewModel: ObservableObject {
     let isOnboardingComplete: Bool
     let therapySettingsViewModelDelegate: TherapySettingsViewModelDelegate?
 
+    /// The available meal-entry plugins (built-in + any discovered frameworks). Drives the Settings meal-entry list.
+    let mealEntryManagers: [MealEntryManagerDescriptor]
+
     @Published var isClosedLoopAllowed: Bool
 
     var closedLoopDescriptiveText: String? {
@@ -120,6 +123,7 @@ public class SettingsViewModel: ObservableObject {
                 availableSupports: [SupportUI],
                 isOnboardingComplete: Bool,
                 therapySettingsViewModelDelegate: TherapySettingsViewModelDelegate?,
+                mealEntryManagers: [MealEntryManagerDescriptor] = [],
                 delegate: SettingsViewModelDelegate?
     ) {
         self.alertPermissionsChecker = alertPermissionsChecker
@@ -137,6 +141,7 @@ public class SettingsViewModel: ObservableObject {
         self.availableSupports = availableSupports
         self.isOnboardingComplete = isOnboardingComplete
         self.therapySettingsViewModelDelegate = therapySettingsViewModelDelegate
+        self.mealEntryManagers = mealEntryManagers
         self.delegate = delegate
 
         // This strangeness ensures the composed ViewModels' (ObservableObjects') changes get reported to this ViewModel (ObservableObject)

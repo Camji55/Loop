@@ -1368,29 +1368,12 @@ final class StatusTableViewController: LoopChartsTableViewController {
         presentCarbEntryScreen(nil)
     }
 
+    /// Coordinates presentation of the active meal-entry plugin from the add-carbs action.
+    private lazy var mealEntryCoordinator = MealEntryCoordinator(deviceManager: deviceManager)
+
     func presentCarbEntryScreen(_ activity: NSUserActivity?) {
-        let navigationWrapper: UINavigationController
-        if FeatureFlags.simpleBolusCalculatorEnabled && !automaticDosingStatus.automaticDosingEnabled {
-            let viewModel = SimpleBolusViewModel(delegate: deviceManager, displayMealEntry: true)
-            if let activity = activity {
-                viewModel.restoreUserActivityState(activity)
-            }
-            let bolusEntryView = SimpleBolusView(viewModel: viewModel).environmentObject(deviceManager.displayGlucosePreference)
-            let hostingController = DismissibleHostingController(rootView: bolusEntryView, isModalInPresentation: false)
-            navigationWrapper = UINavigationController(rootViewController: hostingController)
-            hostingController.navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .cancel, target: navigationWrapper, action: #selector(dismissWithAnimation))
-            present(navigationWrapper, animated: true)
-        } else {
-            let viewModel = CarbEntryViewModel(delegate: deviceManager)
-            if let activity {
-                viewModel.restoreUserActivityState(activity)
-            }
-            let carbEntryView = CarbEntryView(viewModel: viewModel)
-                .environmentObject(deviceManager.displayGlucosePreference)
-            let hostingController = DismissibleHostingController(rootView: carbEntryView, isModalInPresentation: false)
-            present(hostingController, animated: true)
-        }
-        deviceManager.analyticsServicesManager.didDisplayCarbEntryScreen()
+        // Meal entry is vended by the active meal-entry plugin (defaults to the built-in DefaultMealEntryManager).
+        mealEntryCoordinator.presentMealEntry(from: self, userActivity: activity)
     }
 
     @IBAction func presentBolusScreen() {
@@ -1640,6 +1623,7 @@ final class StatusTableViewController: LoopChartsTableViewController {
                                           availableSupports: supportManager.availableSupports,
                                           isOnboardingComplete: onboardingManager.isComplete,
                                           therapySettingsViewModelDelegate: deviceManager,
+                                          mealEntryManagers: deviceManager.availableMealEntryManagers,
                                           delegate: self)
         let hostingController = DismissibleHostingController(
             rootView: SettingsView(viewModel: viewModel, localizedAppNameAndVersion: supportManager.localizedAppNameAndVersion)

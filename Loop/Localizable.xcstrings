@@ -1856,6 +1856,12 @@
         }
       }
     },
+    "%1$@ cal" : {
+      "comment" : "Calorie value (1: number of calories)"
+    },
+    "%1$@ FPU" : {
+      "comment" : "Fat-protein unit value (1: number of units)"
+    },
     "%1$@ is operating with Closed Loop in the OFF position. Your pump and CGM will continue operating, but the app will not adjust dosing automatically." : {
       "comment" : "Alert message for closed loop off informational modal. (1: app name)",
       "localizations" : {
@@ -4213,7 +4219,7 @@
       }
     },
     "Absorption Time" : {
-      "comment" : "Label for food absorption entry on add favorite food screen",
+      "comment" : "Label for food absorption entry on add favorite food screen\nTitle of the macro absorption info screen",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4252,6 +4258,12 @@
           }
         }
       }
+    },
+    "Absorption time is kept between %1$@ and %2$@." : {
+      "comment" : "Footer noting the clamp range (1: min, 2: max)"
+    },
+    "Absorption: %1$@ + (%2$@ FPU × 1 hr)" : {
+      "comment" : "Absorption calculation (1: base time, 2: FPU count)"
     },
     "AcceptRecommendedBolus" : {
       "comment" : "Action to copy the recommended Bolus value to the actual Bolus Field",
@@ -6067,6 +6079,9 @@
           }
         }
       }
+    },
+    "Alerts" : {
+      "comment" : "The title of the Alerts section in settings"
     },
     "Algorithm Experiments" : {
       "comment" : "Navigation title for algorithms experiments screen\nThe title of the Algorithm Experiments section in settings",
@@ -10934,7 +10949,7 @@
       }
     },
     "Carbohydrates" : {
-      "comment" : "Label for carbohydrates entry row on simple bolus screen\nTitle of the prediction input effect for carbohydrates",
+      "comment" : "Label for carbohydrate quantity entry row in macro entry mode\nLabel for carbohydrates entry row on simple bolus screen\nTitle of the prediction input effect for carbohydrates",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12113,8 +12128,11 @@
         }
       }
     },
+    "Choose how you enter meals. Macro entry estimates the carb absorption time from the fat and protein you enter." : {
+      "comment" : "Footer describing the meal entry style setting"
+    },
     "Close" : {
-      "comment" : "Button title to close view\nThe button label of the action used to dismiss the unsafe notification permission alert",
+      "comment" : "Button title to close view\nButton to dismiss the macro absorption info screen\nThe button label of the action used to dismiss the unsafe notification permission alert",
       "localizations" : {
         "da" : {
           "stringUnit" : {
@@ -15988,6 +16006,9 @@
         }
       }
     },
+    "Devices" : {
+      "comment" : "The title of the Devices section in settings"
+    },
     "Diabetes Treatment" : {
       "comment" : "Descriptive text for Therapy Settings",
       "localizations" : {
@@ -16840,6 +16861,9 @@
         }
       }
     },
+    "Emoji" : {
+      "comment" : "Title for the emoji meal entry mode"
+    },
     "Enable\nBluetooth" : {
       "comment" : "Message to the user to enable bluetooth",
       "localizations" : {
@@ -17682,6 +17706,12 @@
           }
         }
       }
+    },
+    "Entry Style" : {
+      "comment" : "Label for the meal entry style menu\nLabel for the meal entry style picker"
+    },
+    "Entry style & favorite foods" : {
+      "comment" : "Descriptive text for the built-in meal entry setting row"
     },
     "Error Canceling Bolus" : {
       "comment" : "The alert title for an error while canceling a bolus",
@@ -18783,8 +18813,26 @@
         }
       }
     },
+    "Fat" : {
+      "comment" : "Label for fat entry row on carb entry screen\nLabel for fat quantity row on add favorite food screen\nLabel for fat row on favorite food detail screen"
+    },
+    "Fat + Protein Energy" : {
+      "comment" : "Label for total fat and protein calories"
+    },
+    "Fat and protein slow how quickly a meal's carbohydrates absorb, so higher-fat or higher-protein meals are given a longer absorption time." : {
+      "comment" : "Macro absorption explanation intro"
+    },
+    "Fat-Protein Units" : {
+      "comment" : "Label for the fat-protein units on carb entry screen"
+    },
+    "Fat-Protein Units: %1$@ cal ÷ 100" : {
+      "comment" : "FPU calculation (1: total calories)"
+    },
+    "Fat: %1$@ g × 9" : {
+      "comment" : "Fat calories calculation (1: grams of fat)"
+    },
     "Favorite Foods" : {
-      "comment" : "Title for Favorite Foods view",
+      "comment" : "Label for the favorite foods row in meal entry settings\nTitle for Favorite Foods view",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -24914,6 +24962,9 @@
         }
       }
     },
+    "Loop Meal Entry" : {
+      "comment" : "The title of the built-in meal entry plugin"
+    },
     "Loop normally gives 40% of your predicted insulin needs each dosing cycle.\n\nWhen the Glucose Based Partial Application experiment is enabled, Loop will vary the percentage of recommended bolus delivered each cycle with glucose level.\n\nNear correction range, it will use 20% (similar to Temp Basal), and gradually increase to a maximum of 80% at high glucose (200 mg/dL, 11.1 mmol/L).\n\nPlease be aware that during fast rising glucose, such as after an unannounced meal, this feature, combined with velocity and retrospective correction effects, may result in a larger dose than your ISF would call for." : {
       "comment" : "Description of Glucose Based Partial Application toggle.",
       "localizations" : {
@@ -25292,6 +25343,9 @@
           }
         }
       }
+    },
+    "Macros" : {
+      "comment" : "Title for the macro meal entry mode"
     },
     "Manage Permissions in Settings" : {
       "comment" : "Manage Permissions in Settings button text",
@@ -25885,6 +25939,12 @@
           }
         }
       }
+    },
+    "Meal Entry" : {
+      "comment" : "Title of the meal entry settings screen"
+    },
+    "Meals" : {
+      "comment" : "The title of the Meals section in settings"
     },
     "mg/dL" : {
       "comment" : "The short unit display string for milligrams of glucose per decilter",
@@ -30563,6 +30623,12 @@
           }
         }
       }
+    },
+    "Protein" : {
+      "comment" : "Label for protein entry row on carb entry screen\nLabel for protein quantity row on add favorite food screen\nLabel for protein row on favorite food detail screen"
+    },
+    "Protein: %1$@ g × 4" : {
+      "comment" : "Protein calories calculation (1: grams of protein)"
     },
     "Pump" : {
       "comment" : "The title of the pump section in settings",
@@ -37287,6 +37353,9 @@
         }
       }
     },
+    "This uses Fat-Protein Units (FPU), from the Warsaw method: every 100 calories from fat and protein counts as one FPU. Fat provides 9 calories per gram and protein 4 calories per gram. Each FPU adds about an hour of absorption time on top of the base, kept within Loop's allowed range." : {
+      "comment" : "Macro absorption explanation of the Warsaw method"
+    },
     "Time Sensitive Alerts" : {
       "localizations" : {
         "da" : {
@@ -41018,6 +41087,9 @@
           }
         }
       }
+    },
+    "Your Calculation" : {
+      "comment" : "Header for the macro absorption calculation section"
     },
     "Your glucose is below %1$@. Are you sure you want to bolus?" : {
       "comment" : "Format string for simple bolus screen warning when glucose is below glucose warning limit.",

@@ -146,6 +146,42 @@ class PluginManager {
         })
     }
     
+    func getMealEntryManagerTypeByIdentifier(_ identifier: String) -> MealEntryManagerUI.Type? {
+        for bundle in pluginBundles {
+            if let name = bundle.object(forInfoDictionaryKey: LoopPluginBundleKey.mealEntryManagerIdentifier.rawValue) as? String, name == identifier {
+                do {
+                    try bundle.loadAndReturnError()
+
+                    if let principalClass = bundle.principalClass as? NSObject.Type {
+
+                        if let plugin = principalClass.init() as? MealEntryManagerUIPlugin {
+                            return plugin.mealEntryManagerType
+                        } else {
+                            fatalError("PrincipalClass does not conform to MealEntryManagerUIPlugin")
+                        }
+
+                    } else {
+                        fatalError("PrincipalClass not found")
+                    }
+                } catch let error {
+                    log.error("Error loading plugin: %{public}@", String(describing: error))
+                }
+            }
+        }
+        return nil
+    }
+
+    var availableMealEntryManagers: [MealEntryManagerDescriptor] {
+        return pluginBundles.compactMap({ (bundle) -> MealEntryManagerDescriptor? in
+            guard let title = bundle.object(forInfoDictionaryKey: LoopPluginBundleKey.mealEntryManagerDisplayName.rawValue) as? String,
+                let identifier = bundle.object(forInfoDictionaryKey: LoopPluginBundleKey.mealEntryManagerIdentifier.rawValue) as? String else {
+                    return nil
+            }
+
+            return MealEntryManagerDescriptor(identifier: identifier, localizedTitle: title)
+        })
+    }
+
     func getStatefulPluginTypeByIdentifier(_ identifier: String) -> StatefulPluggable.Type? {
         for bundle in pluginBundles {
             if let name = bundle.object(forInfoDictionaryKey: LoopPluginBundleKey.statefulPluginIdentifier.rawValue) as? String, name == identifier {
@@ -242,8 +278,9 @@ extension Bundle {
     var isServicePlugin: Bool { object(forInfoDictionaryKey: LoopPluginBundleKey.serviceIdentifier.rawValue) as? String != nil }
     var isOnboardingPlugin: Bool { object(forInfoDictionaryKey: LoopPluginBundleKey.onboardingIdentifier.rawValue) as? String != nil }
     var isSupportPlugin: Bool { object(forInfoDictionaryKey: LoopPluginBundleKey.supportIdentifier.rawValue) as? String != nil }
+    var isMealEntryManagerPlugin: Bool { object(forInfoDictionaryKey: LoopPluginBundleKey.mealEntryManagerIdentifier.rawValue) as? String != nil }
 
-    var isLoopPlugin: Bool { isPumpManagerPlugin || isCGMManagerPlugin || isStatefulPlugin || isServicePlugin || isOnboardingPlugin || isSupportPlugin }
+    var isLoopPlugin: Bool { isPumpManagerPlugin || isCGMManagerPlugin || isStatefulPlugin || isServicePlugin || isOnboardingPlugin || isSupportPlugin || isMealEntryManagerPlugin }
 
     var isLoopExtension: Bool { object(forInfoDictionaryKey: LoopPluginBundleKey.extensionIdentifier.rawValue) as? String != nil }
 
