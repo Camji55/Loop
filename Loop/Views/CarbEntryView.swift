@@ -125,7 +125,7 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
         }
         .sheet(isPresented: $showHowAbsorptionTimeWorks) {
             if viewModel.mode == .macro {
-                MacroAbsorptionInfoView(fatGrams: viewModel.fatQuantity ?? 0, proteinGrams: viewModel.proteinQuantity ?? 0, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
+                MacroAbsorptionInfoView(fatGrams: viewModel.fatQuantity ?? 0, proteinGrams: viewModel.proteinQuantity ?? 0, baseAbsorptionTime: viewModel.macroBaseAbsorptionTime)
             } else {
                 HowAbsorptionTimeWorksView()
             }
@@ -156,6 +156,12 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
                 CardSectionDivider()
 
                 CarbQuantityRow(quantity: $viewModel.proteinQuantity, isFocused: proteinFocused, title: NSLocalizedString("Protein", comment: "Label for protein entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+                CardSectionDivider()
+
+                // The food emoji picker sets the base carb speed (fast/medium/slow); the Fat-Protein Unit extension
+                // is added on top to produce the derived absorption time shown below.
+                FoodTypeRow(foodType: $viewModel.foodType, absorptionTime: $viewModel.macroBaseAbsorptionTime, selectedDefaultAbsorptionTimeEmoji: $viewModel.selectedDefaultAbsorptionTimeEmoji, usesCustomFoodType: $viewModel.usesCustomFoodType, absorptionTimeWasEdited: $viewModel.macroBaseWasEdited, isFocused: foodTypeFocused, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
 
                 CardSectionDivider()
 

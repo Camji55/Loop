@@ -94,6 +94,14 @@ final class CarbEntryViewModel: ObservableObject {
     private var absorptionEditIsProgrammatic = false // needed for when absorption time is changed due to favorite food selection, so that absorptionTimeWasEdited does not get set to true
 
     @Published var absorptionTime: TimeInterval
+
+    /// The base absorption time for macro mode, set by the fast/medium/slow food emoji picker. The Fat-Protein Unit
+    /// extension is added on top of this to produce the derived absorption time.
+    @Published var macroBaseAbsorptionTime: TimeInterval
+    /// Guards the macro-mode food emoji picker (`FoodTypeRow`) from re-adjusting the base once a custom food emoji has
+    /// been chosen — the base equivalent of `absorptionTimeWasEdited`.
+    @Published var macroBaseWasEdited = false
+
     let defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes
     let minAbsorptionTime = LoopConstants.minCarbAbsorptionTime
     let maxAbsorptionTime = LoopConstants.maxCarbAbsorptionTime
@@ -113,6 +121,7 @@ final class CarbEntryViewModel: ObservableObject {
         self.delegate = delegate
         self.mode = mode
         self.absorptionTime = delegate.defaultAbsorptionTimes.medium
+        self.macroBaseAbsorptionTime = delegate.defaultAbsorptionTimes.medium
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
         self.shouldBeginEditingQuantity = true
 
@@ -128,6 +137,7 @@ final class CarbEntryViewModel: ObservableObject {
         self.delegate = delegate
         self.mode = .emoji
         self.originalCarbEntry = originalCarbEntry
+        self.macroBaseAbsorptionTime = delegate.defaultAbsorptionTimes.medium
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
 
         self.carbsQuantity = originalCarbEntry.quantity.doubleValue(for: preferredCarbUnit)
@@ -164,12 +174,9 @@ final class CarbEntryViewModel: ObservableObject {
     }
 
     private var resolvedFoodType: String {
-        switch mode {
-        case .macro:
-            return "🍽️"
-        case .emoji:
-            return usesCustomFoodType ? foodType : selectedDefaultAbsorptionTimeEmoji
-        }
+        // Both modes use the food emoji picker, so the resolved food type follows the same rule: a custom food type
+        // when the user typed one, otherwise the selected fast/medium/slow emoji.
+        usesCustomFoodType ? foodType : selectedDefaultAbsorptionTimeEmoji
     }
 
     // MARK: - Macro-derived absorption (macro mode)
@@ -184,7 +191,7 @@ final class CarbEntryViewModel: ObservableObject {
         MacroAbsorptionModel.absorptionTime(
             fatGrams: fatQuantity ?? 0,
             proteinGrams: proteinQuantity ?? 0,
-            defaultAbsorptionTimes: defaultAbsorptionTimes
+            base: macroBaseAbsorptionTime
         )
     }
 
@@ -320,6 +327,19 @@ final class CarbEntryViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _, _ in
                 guard let self, self.mode == .macro, !self.absorptionTimeWasEdited else { return }
+                self.absorptionEditIsProgrammatic = true
+                self.absorptionTime = self.derivedAbsorptionTime
+            }
+            .store(in: &cancellables)
+
+        // Picking a fast/medium/slow food emoji sets a new base for the Warsaw calculation. Treat it as a deliberate
+        // fresh derivation: clear any manual absorption edit and re-derive from the new base plus the current macros.
+        $macroBaseAbsorptionTime
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self, self.mode == .macro else { return }
+                self.absorptionTimeWasEdited = false
                 self.absorptionEditIsProgrammatic = true
                 self.absorptionTime = self.derivedAbsorptionTime
             }

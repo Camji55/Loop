@@ -8863,6 +8863,9 @@
         }
       }
     },
+    "Basic" : {
+      "comment" : "Title for the basic meal entry mode"
+    },
     "Bluetooth\nOff" : {
       "comment" : "Message to the user to that the bluetooth is off",
       "localizations" : {
@@ -16863,9 +16866,6 @@
           }
         }
       }
-    },
-    "Emoji" : {
-      "comment" : "Title for the emoji meal entry mode"
     },
     "Enable\nBluetooth" : {
       "comment" : "Message to the user to enable bluetooth",
@@ -37359,7 +37359,7 @@
         }
       }
     },
-    "This uses Fat-Protein Units (FPU), from the Warsaw method: every 100 calories from fat and protein counts as one FPU. Fat provides 9 calories per gram and protein 4 calories per gram. Each FPU adds about an hour of absorption time on top of the base, kept within Loop's allowed range." : {
+    "This uses Fat-Protein Units (FPU), from the Warsaw method: every 100 calories from fat and protein counts as one FPU. Fat provides 9 calories per gram and protein 4 calories per gram. Each FPU adds about an hour of absorption time on top of the base time for the food you picked (fast, medium, or slow), kept within Loop's allowed range." : {
       "comment" : "Macro absorption explanation of the Warsaw method"
     },
     "Time Sensitive Alerts" : {

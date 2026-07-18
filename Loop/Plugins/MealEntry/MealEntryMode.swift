@@ -19,7 +19,7 @@ enum MealEntryMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .emoji:
-            return NSLocalizedString("Emoji", comment: "Title for the emoji meal entry mode")
+            return NSLocalizedString("Basic", comment: "Title for the basic meal entry mode")
         case .macro:
             return NSLocalizedString("Macros", comment: "Title for the macro meal entry mode")
         }

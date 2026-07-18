@@ -11,8 +11,10 @@ import LoopKit
 /// Derives a carb absorption time from a meal's macronutrients using Fat-Protein Units (the "Warsaw method").
 ///
 /// 1 FPU = 100 kcal from fat + protein (fat 9 kcal/g, protein 4 kcal/g). The more fat/protein in a meal, the longer
-/// carbs tend to take to absorb, so absorption starts at the configured *medium* default and extends by
-/// `hoursPerFatProteinUnit` per FPU, clamped to Loop's supported absorption range.
+/// carbs tend to take to absorb, so absorption starts at a *base* time chosen for the food's carb speed (the
+/// fast/medium/slow food emoji the user picks) and extends by `hoursPerFatProteinUnit` per FPU, clamped to Loop's
+/// supported absorption range. Anchoring on the selected food speed lets fast carbs (e.g. candy) start near the fast
+/// default while still lengthening for any accompanying fat and protein.
 ///
 /// This is a transparent, tunable heuristic — adjust the constants below.
 enum MacroAbsorptionModel {
@@ -34,16 +36,17 @@ enum MacroAbsorptionModel {
     /// - Parameters:
     ///   - fatGrams: Total fat in the meal, in grams.
     ///   - proteinGrams: Total protein in the meal, in grams.
-    ///   - defaultAbsorptionTimes: The user's configured fast/medium/slow defaults; `medium` is used as the base.
+    ///   - base: The base absorption time for the food's carb speed — the fast/medium/slow time chosen via the food
+    ///     emoji picker. The FPU extension is added on top of this.
     static func absorptionTime(
         fatGrams: Double,
         proteinGrams: Double,
-        defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes,
+        base: TimeInterval,
         minAbsorptionTime: TimeInterval = LoopConstants.minCarbAbsorptionTime,
         maxAbsorptionTime: TimeInterval = LoopConstants.maxCarbAbsorptionTime
     ) -> TimeInterval {
         let fpu = fatProteinUnits(fatGrams: fatGrams, proteinGrams: proteinGrams)
-        let derived = defaultAbsorptionTimes.medium + fpu * .hours(hoursPerFatProteinUnit)
+        let derived = base + fpu * .hours(hoursPerFatProteinUnit)
         return min(max(derived, minAbsorptionTime), maxAbsorptionTime)
     }
 }

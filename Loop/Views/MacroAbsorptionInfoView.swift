@@ -15,7 +15,9 @@ struct MacroAbsorptionInfoView: View {
 
     let fatGrams: Double
     let proteinGrams: Double
-    let defaultAbsorptionTimes: CarbStore.DefaultAbsorptionTimes
+    /// The base absorption time chosen via the food emoji picker (fast/medium/slow), on top of which the FPU
+    /// extension is added.
+    let baseAbsorptionTime: TimeInterval
 
     private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -40,9 +42,9 @@ struct MacroAbsorptionInfoView: View {
         MacroAbsorptionModel.fatProteinUnits(fatGrams: fatGrams, proteinGrams: proteinGrams)
     }
     private var addedHours: Double { fatProteinUnits * MacroAbsorptionModel.hoursPerFatProteinUnit }
-    private var baseTime: TimeInterval { defaultAbsorptionTimes.medium }
+    private var baseTime: TimeInterval { baseAbsorptionTime }
     private var derivedTime: TimeInterval {
-        MacroAbsorptionModel.absorptionTime(fatGrams: fatGrams, proteinGrams: proteinGrams, defaultAbsorptionTimes: defaultAbsorptionTimes)
+        MacroAbsorptionModel.absorptionTime(fatGrams: fatGrams, proteinGrams: proteinGrams, base: baseAbsorptionTime)
     }
 
     var body: some View {
@@ -50,7 +52,7 @@ struct MacroAbsorptionInfoView: View {
             List {
                 Section {
                     Text("Fat and protein slow how quickly a meal's carbohydrates absorb, so higher-fat or higher-protein meals are given a longer absorption time.", comment: "Macro absorption explanation intro")
-                    Text("This uses Fat-Protein Units (FPU), from the Warsaw method: every 100 calories from fat and protein counts as one FPU. Fat provides 9 calories per gram and protein 4 calories per gram. Each FPU adds about an hour of absorption time on top of the base, kept within Loop's allowed range.", comment: "Macro absorption explanation of the Warsaw method")
+                    Text("This uses Fat-Protein Units (FPU), from the Warsaw method: every 100 calories from fat and protein counts as one FPU. Fat provides 9 calories per gram and protein 4 calories per gram. Each FPU adds about an hour of absorption time on top of the base time for the food you picked (fast, medium, or slow), kept within Loop's allowed range.", comment: "Macro absorption explanation of the Warsaw method")
                 }
 
                 Section(header: Text("Your Calculation", comment: "Header for the macro absorption calculation section"),
