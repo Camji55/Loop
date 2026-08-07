@@ -23,6 +23,7 @@ final class CarbEntryViewModel: ObservableObject {
         }
         
         case maxQuantityExceded
+        case maxFatProteinExceded
         case warningQuantityValidation
     }
     
@@ -37,11 +38,14 @@ final class CarbEntryViewModel: ObservableObject {
                 return 1
             case .overrideInProgress:
                 return 2
+            case .customAbsorptionTimeWithFPU:
+                return 3
             }
         }
-        
+
         case entryIsMissedMeal
         case overrideInProgress
+        case customAbsorptionTimeWithFPU
     }
     
     @Published var alert: CarbEntryViewModel.Alert?
@@ -55,6 +59,22 @@ final class CarbEntryViewModel: ObservableObject {
     var preferredCarbUnit = HKUnit.gram()
     var maxCarbEntryQuantity = LoopConstants.maxCarbEntryQuantity
     var warningCarbEntryQuantity = LoopConstants.warningCarbEntryQuantity
+
+    // Fat & Protein Entries experiment. Fat and protein are only editable on new entries;
+    // when the experiment is off, the carb entry flow is unchanged.
+    let fpuConversionEnabled: Bool
+    @Published var fatQuantity: Double? = nil
+    @Published var proteinQuantity: Double? = nil
+
+    var hasEnteredMacros: Bool {
+        (fatQuantity ?? 0) > 0 || (proteinQuantity ?? 0) > 0
+    }
+
+    // Tracks whether the current absorption time came from a food-type emoji, so it can
+    // be reverted when fat/protein are entered (the FPU entry covers the slow tail; the
+    // meal keeps a carb-honest absorption). Explicit picker edits are never reverted.
+    private var pendingEmojiAbsorptionWrite = false
+    private var absorptionTimeSetByEmoji = false
     
     @Published var time = Date()
     private var date = Date()
@@ -92,18 +112,20 @@ final class CarbEntryViewModel: ObservableObject {
         self.absorptionTime = delegate.defaultAbsorptionTimes.medium
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
         self.shouldBeginEditingQuantity = true
-        
+        self.fpuConversionEnabled = UserDefaults.standard.fpuConversionEnabled
+
         observeAbsorptionTimeChange()
         observeFavoriteFoodChange()
         observeFavoriteFoodIndexChange()
         observeLoopUpdates()
     }
-    
+
     /// Initalizer for when`CarbEntryView` has an entry to edit
     init(delegate: CarbEntryViewModelDelegate, originalCarbEntry: StoredCarbEntry) {
         self.delegate = delegate
         self.originalCarbEntry = originalCarbEntry
         self.defaultAbsorptionTimes = delegate.defaultAbsorptionTimes
+        self.fpuConversionEnabled = false
 
         self.carbsQuantity = originalCarbEntry.quantity.doubleValue(for: preferredCarbUnit)
         self.time = originalCarbEntry.startDate
@@ -138,6 +160,21 @@ final class CarbEntryViewModel: ObservableObject {
         }
     }
     
+    /// The delayed carb-equivalent entry for the meal's fat and protein, saved alongside
+    /// the meal entry when the user confirms the bolus. Nil when the experiment is off,
+    /// when editing an existing entry, or when fat and protein are too small to dose.
+    var fpuCarbEntry: NewCarbEntry? {
+        guard fpuConversionEnabled, originalCarbEntry == nil else {
+            return nil
+        }
+        return FPUConversion.carbEquivalentEntry(
+            fatGrams: fatQuantity,
+            proteinGrams: proteinQuantity,
+            adjustmentFactor: UserDefaults.standard.fpuAdjustmentFactor,
+            mealStartDate: time
+        )
+    }
+
     var saveFavoriteFoodButtonDisabled: Bool {
         get {
             if let carbsQuantity, 0...maxCarbEntryQuantity.doubleValue(for: preferredCarbUnit) ~= carbsQuantity, selectedFavoriteFoodIndex == -1 {
@@ -164,7 +201,13 @@ final class CarbEntryViewModel: ObservableObject {
         guard absorptionTime <= maxAbsorptionTime else {
             return
         }
-        
+
+        let maxGrams = maxCarbEntryQuantity.doubleValue(for: preferredCarbUnit)
+        if fatQuantity ?? 0 > maxGrams || proteinQuantity ?? 0 > maxGrams {
+            self.alert = .maxFatProteinExceded
+            return
+        }
+
         guard let carbsQuantity, carbsQuantity > 0 else { return }
         let quantity = HKQuantity(unit: preferredCarbUnit, doubleValue: carbsQuantity)
         if quantity.compare(maxCarbEntryQuantity) == .orderedDescending {
@@ -187,7 +230,8 @@ final class CarbEntryViewModel: ObservableObject {
             screenWidth: UIScreen.main.bounds.width,
             originalCarbEntry: originalCarbEntry,
             potentialCarbEntry: updatedCarbEntry,
-            selectedCarbAbsorptionTimeEmoji: selectedDefaultAbsorptionTimeEmoji
+            selectedCarbAbsorptionTimeEmoji: selectedDefaultAbsorptionTimeEmoji,
+            fpuCarbEntry: fpuCarbEntry
         )
         Task {
             await viewModel.generateRecommendationAndStartObserving()
@@ -212,7 +256,7 @@ final class CarbEntryViewModel: ObservableObject {
     
     // MARK: - Favorite Foods
     func onFavoriteFoodSave(_ food: NewFavoriteFood) {
-        let newStoredFood = StoredFavoriteFood(name: food.name, carbsQuantity: food.carbsQuantity, foodType: food.foodType, absorptionTime: food.absorptionTime)
+        let newStoredFood = StoredFavoriteFood(name: food.name, carbsQuantity: food.carbsQuantity, foodType: food.foodType, absorptionTime: food.absorptionTime, fatQuantity: food.fatQuantity, proteinQuantity: food.proteinQuantity)
         favoriteFoods.append(newStoredFood)
         selectedFavoriteFoodIndex = favoriteFoods.count - 1
     }
@@ -239,7 +283,11 @@ final class CarbEntryViewModel: ObservableObject {
 
     private func favoriteFoodSelected(at index: Int) {
         self.absorptionEditIsProgrammatic = true
+        // Replace any macros typed for a different meal with the favorite's own (or
+        // clear them), so they cannot silently attach an FPU entry to this one.
         if index == -1 {
+            self.fatQuantity = nil
+            self.proteinQuantity = nil
             self.carbsQuantity = 0
             self.foodType = ""
             self.absorptionTime = defaultAbsorptionTimes.medium
@@ -248,12 +296,15 @@ final class CarbEntryViewModel: ObservableObject {
         }
         else {
             let food = favoriteFoods[index]
+            self.fatQuantity = fpuConversionEnabled ? food.fatQuantity?.doubleValue(for: preferredCarbUnit) : nil
+            self.proteinQuantity = fpuConversionEnabled ? food.proteinQuantity?.doubleValue(for: preferredCarbUnit) : nil
             self.carbsQuantity = food.carbsQuantity.doubleValue(for: preferredCarbUnit)
             self.foodType = food.foodType
             self.absorptionTime = food.absorptionTime
             self.absorptionTimeWasEdited = true
             self.usesCustomFoodType = true
         }
+        updateCustomAbsorptionWarning()
     }
     
     // MARK: - Utility
@@ -306,13 +357,71 @@ final class CarbEntryViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .dropFirst()
             .sink { [weak self] _ in
-                if self?.absorptionEditIsProgrammatic == true {
-                    self?.absorptionEditIsProgrammatic = false
+                guard let self else { return }
+                if self.absorptionEditIsProgrammatic {
+                    self.absorptionEditIsProgrammatic = false
+                    self.absorptionTimeSetByEmoji = false
                 }
                 else {
-                    self?.absorptionTimeWasEdited = true
+                    self.absorptionTimeWasEdited = true
+                    self.absorptionTimeSetByEmoji = self.pendingEmojiAbsorptionWrite
                 }
+                self.pendingEmojiAbsorptionWrite = false
+                self.updateCustomAbsorptionWarning()
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Fat & Protein Entries
+
+    /// Absorption-time writes coming from the food-type emoji shortcuts. While the FPU
+    /// experiment is active and fat/protein have been entered, the emoji only tags the
+    /// food type — the meal keeps its carb absorption and the FPU entry covers the tail.
+    /// With no macros entered (e.g. 🍭 glucose tabs), stock behavior is unchanged.
+    func setAbsorptionTimeFromEmoji(_ time: TimeInterval) {
+        guard !(fpuConversionEnabled && hasEnteredMacros) else {
+            return
+        }
+        pendingEmojiAbsorptionWrite = true
+        absorptionTime = time
+    }
+
+    /// Fat/protein edits from the entry screen. When macros first appear, an
+    /// emoji-driven absorption reverts to the carb default; explicit edits are kept.
+    func userEnteredFatQuantity(_ value: Double?) {
+        fatQuantity = value
+        revertEmojiAbsorptionIfNeeded()
+        updateCustomAbsorptionWarning()
+    }
+
+    func userEnteredProteinQuantity(_ value: Double?) {
+        proteinQuantity = value
+        revertEmojiAbsorptionIfNeeded()
+        updateCustomAbsorptionWarning()
+    }
+
+    private func revertEmojiAbsorptionIfNeeded() {
+        guard fpuConversionEnabled, hasEnteredMacros, absorptionTimeSetByEmoji else {
+            return
+        }
+        absorptionEditIsProgrammatic = true
+        absorptionTime = defaultAbsorptionTimes.medium
+        absorptionTimeWasEdited = false
+        absorptionTimeSetByEmoji = false
+    }
+
+    /// Warns while the absorption time differs from the default although fat/protein are
+    /// generating a carb equivalent entry: the equivalent already covers the slow tail,
+    /// so stretching the meal's own absorption usually double-covers the fat. Comparing
+    /// values (not edit flags) lets the warning clear when the time is set back.
+    /// With macros entered, a non-default time can only come from an explicit edit or a
+    /// favorite food — emoji-driven times are blocked and auto-reverted in that state.
+    private func updateCustomAbsorptionWarning() {
+        if fpuConversionEnabled, fpuCarbEntry != nil, absorptionTime != defaultAbsorptionTimes.medium {
+            warnings.insert(.customAbsorptionTimeWithFPU)
+        }
+        else {
+            warnings.remove(.customAbsorptionTimeWithFPU)
+        }
     }
 }

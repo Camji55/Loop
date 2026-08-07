@@ -21,6 +21,7 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
     
     @State private var showHowAbsorptionTimeWorks = false
     @State private var showAddFavoriteFood = false
+    @State private var showFPUCalculation = false
     
     private let isNewEntry: Bool
 
@@ -88,11 +89,25 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
         }
         .alert(item: $viewModel.alert, content: alert(for:))
         .sheet(isPresented: $showAddFavoriteFood, onDismiss: clearExpandedRow) {
-            AddEditFavoriteFoodView(carbsQuantity: $viewModel.carbsQuantity.wrappedValue, foodType: $viewModel.foodType.wrappedValue, absorptionTime: $viewModel.absorptionTime.wrappedValue, onSave: onFavoriteFoodSave(_:))
+            AddEditFavoriteFoodView(carbsQuantity: $viewModel.carbsQuantity.wrappedValue, foodType: $viewModel.foodType.wrappedValue, absorptionTime: $viewModel.absorptionTime.wrappedValue, fatQuantity: viewModel.fatQuantity, proteinQuantity: viewModel.proteinQuantity, onSave: onFavoriteFoodSave(_:))
         }
         .sheet(isPresented: $showHowAbsorptionTimeWorks) {
             HowAbsorptionTimeWorksView()
         }
+        .sheet(isPresented: $showFPUCalculation) {
+            fpuCalculationInfoView
+        }
+    }
+
+    private var fpuCalculationInfoView: some View {
+        FPUCalculationInfoView(
+            carbsGrams: viewModel.carbsQuantity ?? 0,
+            fatGrams: viewModel.fatQuantity ?? 0,
+            proteinGrams: viewModel.proteinQuantity ?? 0,
+            adjustmentFactor: UserDefaults.standard.fpuAdjustmentFactor,
+            mealStartDate: viewModel.time,
+            mealAbsorptionTime: viewModel.absorptionTime
+        )
     }
     
     private var mainCard: some View {
@@ -102,20 +117,75 @@ struct CarbEntryView: View, HorizontalSizeClassOverride {
             let foodTypeFocused: Binding<Bool> = Binding(get: { expandedRow == .foodType }, set: { expandedRow = $0 ? .foodType : nil })
             let absorptionTimeFocused: Binding<Bool> = Binding(get: { expandedRow == .absorptionTime }, set: { expandedRow = $0 ? .absorptionTime : nil })
             
-            CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: amountConsumedFocused, title: NSLocalizedString("Amount Consumed", comment: "Label for carb quantity entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+            let carbAmountTitle = viewModel.fpuConversionEnabled
+                ? NSLocalizedString("Carbohydrates", comment: "Label for carb quantity entry row when fat and protein entries are enabled")
+                : NSLocalizedString("Amount Consumed", comment: "Label for carb quantity entry row on carb entry screen")
+
+            CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: amountConsumedFocused, title: carbAmountTitle, preferredCarbUnit: viewModel.preferredCarbUnit)
+
+            if viewModel.fpuConversionEnabled {
+                let fatFocused: Binding<Bool> = Binding(get: { expandedRow == .fatAmount }, set: { expandedRow = $0 ? .fatAmount : nil })
+                let proteinFocused: Binding<Bool> = Binding(get: { expandedRow == .proteinAmount }, set: { expandedRow = $0 ? .proteinAmount : nil })
+
+                let fatQuantity = Binding(get: { viewModel.fatQuantity }, set: { viewModel.userEnteredFatQuantity($0) })
+                let proteinQuantity = Binding(get: { viewModel.proteinQuantity }, set: { viewModel.userEnteredProteinQuantity($0) })
+
+                CardSectionDivider()
+
+                CarbQuantityRow(quantity: fatQuantity, isFocused: fatFocused, title: NSLocalizedString("Fat", comment: "Label for fat quantity entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+                CardSectionDivider()
+
+                CarbQuantityRow(quantity: proteinQuantity, isFocused: proteinFocused, title: NSLocalizedString("Protein", comment: "Label for protein quantity entry row on carb entry screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+            }
 
             CardSectionDivider()
-            
+
             DatePickerRow(date: $viewModel.time, isFocused: timeFocused, minimumDate: viewModel.minimumDate, maximumDate: viewModel.maximumDate)
             
             CardSectionDivider()
             
-            FoodTypeRow(foodType: $viewModel.foodType, absorptionTime: $viewModel.absorptionTime, selectedDefaultAbsorptionTimeEmoji: $viewModel.selectedDefaultAbsorptionTimeEmoji, usesCustomFoodType: $viewModel.usesCustomFoodType, absorptionTimeWasEdited: $viewModel.absorptionTimeWasEdited, isFocused: foodTypeFocused, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
+            // Absorption writes from the emoji shortcuts route through the view model so
+            // the FPU experiment can keep the emoji as a food-type tag only once
+            // fat/protein are entered. Reads and picker-row edits are unaffected.
+            let emojiDrivenAbsorptionTime = Binding(get: { viewModel.absorptionTime }, set: { viewModel.setAbsorptionTimeFromEmoji($0) })
+
+            FoodTypeRow(foodType: $viewModel.foodType, absorptionTime: emojiDrivenAbsorptionTime, selectedDefaultAbsorptionTimeEmoji: $viewModel.selectedDefaultAbsorptionTimeEmoji, usesCustomFoodType: $viewModel.usesCustomFoodType, absorptionTimeWasEdited: $viewModel.absorptionTimeWasEdited, isFocused: foodTypeFocused, defaultAbsorptionTimes: viewModel.defaultAbsorptionTimes)
             
             CardSectionDivider()
             
             AbsorptionTimePickerRow(absorptionTime: $viewModel.absorptionTime, isFocused: absorptionTimeFocused, validDurationRange: viewModel.absorptionRimesRange, showHowAbsorptionTimeWorks: $showHowAbsorptionTimeWorks)
                 .padding(.bottom, 2)
+
+            if viewModel.fpuConversionEnabled, let fpuCarbEntry = viewModel.fpuCarbEntry {
+                CardSectionDivider()
+
+                HStack {
+                    Text("Fat & Protein Impact", comment: "Label for the fat and protein impact row on carb entry screen")
+                        .foregroundColor(.primary)
+
+                    Button(action: {
+                        showFPUCalculation = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .font(.body)
+                            .foregroundColor(.accentColor)
+                    }
+
+                    Spacer()
+
+                    Text(String(format: NSLocalizedString("%1$@ g", comment: "Gram value (1: number of grams)"), NumberFormatter.localizedString(from: NSNumber(value: fpuCarbEntry.quantity.doubleValue(for: .gram())), number: .none)))
+                        .foregroundColor(Color(UIColor.secondaryLabel))
+                        .lineLimit(1)
+                }
+                .frame(height: 44)
+                .padding(.vertical, -8)
+                .padding(.bottom, 2)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showFPUCalculation = true
+                }
+            }
         }
         .padding(.vertical, 12)
         .padding(.horizontal)
@@ -165,17 +235,19 @@ extension CarbEntryView {
         switch warning {
         case .entryIsMissedMeal:
             return .critical
-        case .overrideInProgress:
+        case .overrideInProgress, .customAbsorptionTimeWithFPU:
             return .warning
         }
     }
-    
+
     private func warningText(for warning: CarbEntryViewModel.Warning) -> String {
         switch warning {
         case .entryIsMissedMeal:
             return NSLocalizedString("Loop has detected an missed meal and estimated its size. Edit the carb amount to match the amount of any carbs you may have eaten.", comment: "Warning displayed when user is adding a meal from an missed meal notification")
         case .overrideInProgress:
             return NSLocalizedString("An active override is modifying your carb ratio and insulin sensitivity. If you don't want this to affect your bolus calculation and projected glucose, consider turning off the override.", comment: "Warning to ensure the carb entry is accurate during an override")
+        case .customAbsorptionTimeWithFPU:
+            return NSLocalizedString("A custom absorption time is not generally recommended when fat and protein are affecting dosing. The carb equivalent entry already covers the slow absorption from fat and protein, so keep this entry's absorption time matched to its carbohydrates.", comment: "Warning displayed when a custom absorption time is set while a fat/protein carb equivalent will be created")
         }
     }
     
@@ -184,6 +256,17 @@ extension CarbEntryView {
         case .maxQuantityExceded:
             let message = String(
                 format: NSLocalizedString("The maximum allowed amount is %@ grams.", comment: "Alert body displayed for quantity greater than max (1: maximum quantity in grams)"),
+                NumberFormatter.localizedString(from: NSNumber(value: viewModel.maxCarbEntryQuantity.doubleValue(for: viewModel.preferredCarbUnit)), number: .none)
+            )
+            let okMessage = NSLocalizedString("com.loudnate.LoopKit.errorAlertActionTitle", value: "OK", comment: "The title of the action used to dismiss an error alert")
+            return SwiftUI.Alert(
+                title: Text("Large Meal Entered", comment: "Title of the warning shown when a large meal was entered"),
+                message: Text(message),
+                dismissButton: .cancel(Text(okMessage), action: viewModel.clearAlert)
+            )
+        case .maxFatProteinExceded:
+            let message = String(
+                format: NSLocalizedString("The maximum allowed amount of fat or protein is %@ grams.", comment: "Alert body displayed for fat or protein quantity greater than max (1: maximum quantity in grams)"),
                 NumberFormatter.localizedString(from: NSNumber(value: viewModel.maxCarbEntryQuantity.doubleValue(for: viewModel.preferredCarbUnit)), number: .none)
             )
             let okMessage = NSLocalizedString("com.loudnate.LoopKit.errorAlertActionTitle", value: "OK", comment: "The title of the action used to dismiss an error alert")
@@ -314,6 +397,7 @@ extension CarbEntryView {
 
 extension CarbEntryView {
     enum Row {
-        case amountConsumed, time, foodType, absorptionTime, favoriteFoodSelection
+        case amountConsumed, fatAmount, proteinAmount, time, foodType, absorptionTime, favoriteFoodSelection
     }
 }
+

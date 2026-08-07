@@ -41,6 +41,7 @@ public struct ExperimentRow: View {
 public struct ExperimentsSettingsView: View {
     @AppStorage(UserDefaults.Key.GlucoseBasedApplicationFactorEnabled.rawValue) private var isGlucoseBasedApplicationFactorEnabled = false
     @AppStorage(UserDefaults.Key.IntegralRetrospectiveCorrectionEnabled.rawValue) private var isIntegralRetrospectiveCorrectionEnabled = false
+    @AppStorage(UserDefaults.fpuConversionEnabledKey) private var isFPUConversionEnabled = false
     var automaticDosingStrategy: AutomaticDosingStrategy
 
     public var body: some View {
@@ -69,6 +70,11 @@ public struct ExperimentsSettingsView: View {
                     ExperimentRow(
                         name: NSLocalizedString("Integral Retrospective Correction", comment: "Title of integral retrospective correction experiment"),
                         enabled: isIntegralRetrospectiveCorrectionEnabled)
+                }
+                NavigationLink(destination: FatProteinEntriesSelectionView(isFPUConversionEnabled: $isFPUConversionEnabled)) {
+                    ExperimentRow(
+                        name: NSLocalizedString("Fat & Protein Entries", comment: "Title of fat and protein entries experiment"),
+                        enabled: isFPUConversionEnabled)
                 }
                 Spacer()
             }

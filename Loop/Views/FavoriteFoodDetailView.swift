@@ -14,7 +14,7 @@ public struct FavoriteFoodDetailView: View {
     let food: StoredFavoriteFood?
     let onFoodDelete: (StoredFavoriteFood) -> Void
     
-    @State private var isConfirmingDelete = false
+    @State private var isConfirmingDelete: Bool
     
     let carbFormatter: QuantityFormatter
     let absorptionTimeFormatter: DateComponentsFormatter
@@ -34,9 +34,17 @@ public struct FavoriteFoodDetailView: View {
             List {
                 Section("Information") {
                     VStack(spacing: 16) {
+                        let showMacros = UserDefaults.standard.fpuConversionEnabled
+                        let macroRows: [(field: String, value: String)] = [
+                            (String(localized: "Fat", comment: "Label for fat row on favorite food detail screen"), (food.fatQuantity).flatMap { carbFormatter.string(from: $0) } ?? ""),
+                            (String(localized: "Protein", comment: "Label for protein row on favorite food detail screen"), (food.proteinQuantity).flatMap { carbFormatter.string(from: $0) } ?? ""),
+                        ].filter { !$0.value.isEmpty }
                         let rows: [(field: String, value: String)] = [
                             (String(localized: "Name", comment: "Label for name row on add favorite food screen"), food.name),
                             (String(localized: "Carb Quantity", comment: "Label for carb quantity row on add favorite food screen"), food.carbsString(formatter: carbFormatter)),
+                        ]
+                        + (showMacros ? macroRows : [])
+                        + [
                             (String(localized:"Food Type", comment: "Label for food type entry on add favorite food screen"), food.foodType),
                             (String(localized: "Absorption Time", comment: "Label for food absorption entry on add favorite food screen"), food.absorptionTimeString(formatter: absorptionTimeFormatter))
                         ]

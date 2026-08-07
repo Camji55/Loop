@@ -455,6 +455,7 @@ final class CarbAbsorptionViewController: LoopChartsTableViewController, Identif
                     switch result {
                     case .success:
                         self.isEditing = false
+                        self.deleteLinkedFPUEntry(for: status.entry)
                         break  // Notification will trigger update
                     case .failure(let error):
                         self.refreshContext.update(with: .carbs)
@@ -462,6 +463,25 @@ final class CarbAbsorptionViewController: LoopChartsTableViewController, Identif
                     }
                 }
             }
+        }
+    }
+
+    /// When a meal entry is deleted, also delete the fat/protein equivalent entry that was
+    /// created with it, identified by its food type and its fixed offset from the meal time.
+    private func deleteLinkedFPUEntry(for deletedEntry: StoredCarbEntry) {
+        guard deletedEntry.foodType != FPUConversion.equivalentFoodType else {
+            return  // The deleted entry is itself an equivalent; nothing is linked to it
+        }
+
+        let expectedStartDate = deletedEntry.startDate.addingTimeInterval(FPUConversion.equivalentEntryDelay)
+        deviceManager.carbStore.getCarbEntries(start: expectedStartDate.addingTimeInterval(-1), end: expectedStartDate.addingTimeInterval(1)) { (result) in
+            guard case .success(let entries) = result,
+                  let linkedEntry = entries.first(where: { $0.foodType == FPUConversion.equivalentFoodType && $0.startDate == expectedStartDate && $0.createdByCurrentApp })
+            else {
+                return
+            }
+
+            self.deviceManager.loopManager.deleteCarbEntry(linkedEntry) { _ in }
         }
     }
 

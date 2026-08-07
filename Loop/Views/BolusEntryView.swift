@@ -211,6 +211,21 @@ struct BolusEntryView: View {
                 Text(viewModel.carbEntryDateAndAbsorptionTimeString!)
                     .foregroundColor(Color(.secondaryLabel))
             }
+
+            if viewModel.fpuCarbEntryAmountAndEmojiString != nil && viewModel.fpuCarbEntryDateAndAbsorptionTimeString != nil {
+                HStack {
+                    Text("Fat & Protein", comment: "Label for fat and protein entry row on bolus screen")
+
+                    Text(viewModel.fpuCarbEntryAmountAndEmojiString!)
+                        .foregroundColor(Color(.carbTintColor))
+                        .modifier(LabelBackground())
+
+                    Spacer()
+
+                    Text(viewModel.fpuCarbEntryDateAndAbsorptionTimeString!)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+            }
         }
     }
 

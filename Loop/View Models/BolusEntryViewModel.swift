@@ -111,6 +111,11 @@ final class BolusEntryViewModel: ObservableObject {
 
     let originalCarbEntry: StoredCarbEntry?
     let potentialCarbEntry: NewCarbEntry?
+
+    /// A delayed fat/protein carb-equivalent entry to save alongside `potentialCarbEntry`.
+    /// Deliberately excluded from the bolus recommendation: insulin for it is delivered by
+    /// automatic dosing after it starts absorbing.
+    let fpuCarbEntry: NewCarbEntry?
     let selectedCarbAbsorptionTimeEmoji: String?
 
     @Published var recommendedBolus: HKQuantity?
@@ -171,7 +176,8 @@ final class BolusEntryViewModel: ObservableObject {
         originalCarbEntry: StoredCarbEntry? = nil,
         potentialCarbEntry: NewCarbEntry? = nil,
         selectedCarbAbsorptionTimeEmoji: String? = nil,
-        isManualGlucoseEntryEnabled: Bool = false
+        isManualGlucoseEntryEnabled: Bool = false,
+        fpuCarbEntry: NewCarbEntry? = nil
     ) {
         self.delegate = delegate
         self.now = now
@@ -188,6 +194,7 @@ final class BolusEntryViewModel: ObservableObject {
         self.originalCarbEntry = originalCarbEntry
         self.potentialCarbEntry = potentialCarbEntry
         self.selectedCarbAbsorptionTimeEmoji = selectedCarbAbsorptionTimeEmoji
+        self.fpuCarbEntry = fpuCarbEntry
         
         self.isManualGlucoseEntryEnabled = isManualGlucoseEntryEnabled
         
@@ -412,6 +419,14 @@ final class BolusEntryViewModel: ObservableObject {
                 self.presentAlert(.carbEntryPersistenceFailure)
                 return false
             }
+
+            // Save the fat/protein equivalent entry only after its meal entry saved
+            // successfully; a failure here must not block the bolus.
+            if originalCarbEntry == nil, let fpuCarbEntry = fpuCarbEntry {
+                if await saveCarbEntry(fpuCarbEntry, replacingEntry: nil) == nil {
+                    log.error("Failed to save fat/protein equivalent carb entry")
+                }
+            }
         }
 
         dosingDecision.manualBolusRequested = amountToDeliver
@@ -478,6 +493,36 @@ final class BolusEntryViewModel: ObservableObject {
             return String(format: NSLocalizedString("%1$@ %2$@", comment: "Format string combining carb entry quantity and absorption time emoji"), carbAmountString, emoji)
         } else {
             return carbAmountString
+        }
+    }
+
+    var fpuCarbEntryAmountAndEmojiString: String? {
+        guard
+            potentialCarbEntry != nil,
+            let fpuCarbEntry = fpuCarbEntry,
+            let amountString = QuantityFormatter(for: .gram()).string(from: fpuCarbEntry.quantity)
+        else {
+            return nil
+        }
+
+        if let foodType = fpuCarbEntry.foodType {
+            return String(format: NSLocalizedString("%1$@ %2$@", comment: "Format string combining carb entry quantity and absorption time emoji"), amountString, foodType)
+        } else {
+            return amountString
+        }
+    }
+
+    var fpuCarbEntryDateAndAbsorptionTimeString: String? {
+        guard let fpuCarbEntry = fpuCarbEntry else {
+            return nil
+        }
+
+        let entryTimeString = carbEntryDateFormatter.string(from: fpuCarbEntry.startDate)
+
+        if let absorptionTime = fpuCarbEntry.absorptionTime, let absorptionTimeString = absorptionTimeFormatter.string(from: absorptionTime) {
+            return String(format: NSLocalizedString("%1$@ + %2$@", comment: "Format string combining carb entry time and absorption time"), entryTimeString, absorptionTimeString)
+        } else {
+            return entryTimeString
         }
     }
 

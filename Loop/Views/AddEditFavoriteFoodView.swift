@@ -27,8 +27,8 @@ struct AddEditFavoriteFoodView: View {
     }
     
     /// Initializer for presenting the `AddEditFavoriteFoodView` prepopulated from the `CarbEntryView`
-    init(carbsQuantity: Double?, foodType: String, absorptionTime: TimeInterval, onSave: @escaping (NewFavoriteFood) -> Void) {
-        self._viewModel = StateObject(wrappedValue: AddEditFavoriteFoodViewModel(carbsQuantity: carbsQuantity, foodType: foodType, absorptionTime: absorptionTime, onSave: onSave))
+    init(carbsQuantity: Double?, foodType: String, absorptionTime: TimeInterval, fatQuantity: Double? = nil, proteinQuantity: Double? = nil, onSave: @escaping (NewFavoriteFood) -> Void) {
+        self._viewModel = StateObject(wrappedValue: AddEditFavoriteFoodViewModel(carbsQuantity: carbsQuantity, foodType: foodType, absorptionTime: absorptionTime, fatQuantity: fatQuantity, proteinQuantity: proteinQuantity, onSave: onSave))
     }
     
     var body: some View {
@@ -98,9 +98,22 @@ struct AddEditFavoriteFoodView: View {
             CardSectionDivider()
 
             CarbQuantityRow(quantity: $viewModel.carbsQuantity, isFocused: carbQuantityFocused, title: String(localized: "Carb Quantity", comment: "Label for carb quantity row on add favorite food screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
-            
+
+            if viewModel.fpuConversionEnabled {
+                let fatQuantityFocused: Binding<Bool> = Binding(get: { expandedRow == .fatQuantity }, set: { expandedRow = $0 ? .fatQuantity : nil })
+                let proteinQuantityFocused: Binding<Bool> = Binding(get: { expandedRow == .proteinQuantity }, set: { expandedRow = $0 ? .proteinQuantity : nil })
+
+                CardSectionDivider()
+
+                CarbQuantityRow(quantity: $viewModel.fatQuantity, isFocused: fatQuantityFocused, title: String(localized: "Fat", comment: "Label for fat quantity row on add favorite food screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+
+                CardSectionDivider()
+
+                CarbQuantityRow(quantity: $viewModel.proteinQuantity, isFocused: proteinQuantityFocused, title: String(localized: "Protein", comment: "Label for protein quantity row on add favorite food screen"), preferredCarbUnit: viewModel.preferredCarbUnit)
+            }
+
             CardSectionDivider()
-            
+
             EmojiRow(text: $viewModel.foodType, isFocused: foodTypeFocused, emojiType: .food, title: String(localized: "Food Type", comment: "Label for food type entry on add favorite food screen"))
             
             CardSectionDivider()
@@ -168,6 +181,6 @@ extension AddEditFavoriteFoodView {
 
 extension AddEditFavoriteFoodView {
     enum Row {
-        case name, carbQuantity, foodType, absorptionTime
+        case name, carbQuantity, fatQuantity, proteinQuantity, foodType, absorptionTime
     }
 }
